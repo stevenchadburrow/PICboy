@@ -628,11 +628,6 @@ unsigned char gb_read(unsigned short addr)
 // write to memory
 void gb_write(unsigned short addr, unsigned char val)
 {
-//	if (addr == 0xDFD2)
-//	{
-//		printf("%04X %02X\n", gb_reg_pc.r16, val);
-//	}
-
 	if (addr < 0x4000) // rom, fixed bank
 	{
 	}
@@ -5434,48 +5429,6 @@ int main(const int argc, const char **argv)
 		{
 			game_draw = 0;
 
-/*
-			// TEMPORARY
-			unsigned char buffer[2];
-			unsigned char tile;
-	
-			for (int y=0; y<18; y++)
-			{
-				for (int x=0; x<20; x++)
-				{
-					tile = gb_mem_vram[0x1800+y*32+x];
-
-					for (int i=0; i<8; i++)
-					{				
-						buffer[0] = gb_mem_vram[i*2+0+tile*16];
-						buffer[1] = gb_mem_vram[i*2+1+tile*16];
-
-						for (int j=0; j<8; j++)
-						{
-							if ((buffer[0] & 0x80) && (buffer[1] & 0x80))
-							{
-								game_screen_buffer[i*160+j+y*1280+x*8] = 0x0000;
-							}
-							else if (!(buffer[0] & 0x80) && (buffer[1] & 0x80))
-							{
-								game_screen_buffer[i*160+j+y*1280+x*8] = 0x2108;
-							}
-							else if ((buffer[0] & 0x80) && !(buffer[1] & 0x80))
-							{
-								game_screen_buffer[i*160+j+y*1280+x*8] = 0x3DEF;
-							}
-							else if (!(buffer[0] & 0x80) && !(buffer[1] & 0x80))
-							{
-								game_screen_buffer[i*160+j+y*1280+x*8] = 0x7FFF;
-							}
-
-							buffer[0] = (buffer[0] << 1);
-							buffer[1] = (buffer[1] << 1);
-						}
-					}
-				}
-			}
-*/
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 			glLoadIdentity();
 
