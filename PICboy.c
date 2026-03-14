@@ -46,20 +46,22 @@ unsigned char openal_enable = 1;
 
 // variables for general emulation
 
-unsigned short game_screen_buffer[SCREEN_X*SCREEN_Y];
-unsigned char game_audio_buffer[AUDIO_LEN];
-int game_audio_file = 0;
-unsigned int game_audio_read = 0;
-unsigned int game_audio_write = 0;
-unsigned char game_run = 1;
-unsigned char game_draw = 0;
-unsigned long game_clock = 0;
+unsigned short gb_game_screen_buffer[SCREEN_X*SCREEN_Y];
+unsigned char gb_game_audio_buffer[AUDIO_LEN];
+int gb_game_audio_file = 0;
+unsigned int gb_game_audio_read = 0;
+unsigned int gb_game_audio_write = 0;
+unsigned char gb_game_buttons_current = 0;
+unsigned char gb_game_buttons_previous = 0;
+unsigned char gb_game_run = 1;
+unsigned char gb_game_draw = 0;
+unsigned long gb_game_clock = 0;
 
 // waiting for proper timing
-void game_wait()
+void gb_game_wait()
 {
-	while (clock() < game_clock + 16742) { } // for 59.73 Hz
-	game_clock = clock();	
+	while (clock() < gb_game_clock + 16742) { } // for 59.73 Hz
+	gb_game_clock = clock();	
 }
 
 // variables for gameboy emulation
@@ -500,7 +502,18 @@ unsigned char gb_read(unsigned short addr)
 		{
 			case 0xFF00: // JOYP
 			{
-				return 0xFF;
+				if ((gb_io_joyp & 0x30) == 0x10)
+				{
+					return (0xC0 | (gb_io_joyp & 0x30) | (gb_game_buttons_current & 0x0F)); // buttons
+				} 
+				else if ((gb_io_joyp & 0x30) == 0x20)
+				{
+					return (0xC0 | (gb_io_joyp & 0x30) | ((gb_game_buttons_current & 0xF0) >> 4)); // d-pad
+				}
+				else
+				{
+					return (0xC0 | (gb_io_joyp & 0x30) | 0x0F);
+				}
 				break;
 			}
 			case 0xFF01: // SB
@@ -666,6 +679,7 @@ void gb_write(unsigned short addr, unsigned char val)
 		{
 			case 0xFF00: // JOYP
 			{
+				gb_io_joyp = (unsigned char)(val & 0x30);
 				break;
 			}
 			case 0xFF01: // SB
@@ -837,7 +851,7 @@ void gb_line()
 				val = ((gb_io_bgp & (0x03 << pal)) >> pal);
 				color = gb_master_palette[val];
 
-				game_screen_buffer[pos] = color;
+				gb_game_screen_buffer[pos] = color;
 			}
 
 			left <<= 1;
@@ -877,7 +891,7 @@ void gb_line()
 					val = ((gb_io_bgp & (0x03 << pal)) >> pal);
 					color = gb_master_palette[val];
 
-					game_screen_buffer[pos] = color;
+					gb_game_screen_buffer[pos] = color;
 				}
 
 				left <<= 1;
@@ -924,7 +938,7 @@ void gb_line()
 									{
 										val = ((loc & (0x03 << pal)) >> pal);
 										color = gb_master_palette[val];
-										game_screen_buffer[pos] = color;
+										gb_game_screen_buffer[pos] = color;
 									}
 								}
 
@@ -954,7 +968,7 @@ void gb_line()
 									{
 										val = ((loc & (0x03 << pal)) >> pal);
 										color = gb_master_palette[val];
-										game_screen_buffer[pos] = color;
+										gb_game_screen_buffer[pos] = color;
 									}
 								}
 
@@ -984,7 +998,7 @@ void gb_line()
 									{
 										val = ((loc & (0x03 << pal)) >> pal);
 										color = gb_master_palette[val];
-										game_screen_buffer[pos] = color;
+										gb_game_screen_buffer[pos] = color;
 									}
 								}
 
@@ -1014,7 +1028,7 @@ void gb_line()
 									{
 										val = ((loc & (0x03 << pal)) >> pal);
 										color = gb_master_palette[val];
-										game_screen_buffer[pos] = color;
+										gb_game_screen_buffer[pos] = color;
 									}
 								}
 
@@ -1063,7 +1077,7 @@ void gb_line()
 									{
 										val = ((loc & (0x03 << pal)) >> pal);
 										color = gb_master_palette[val];
-										game_screen_buffer[pos] = color;
+										gb_game_screen_buffer[pos] = color;
 									}
 								}
 
@@ -1093,7 +1107,7 @@ void gb_line()
 									{
 										val = ((loc & (0x03 << pal)) >> pal);
 										color = gb_master_palette[val];
-										game_screen_buffer[pos] = color;
+										gb_game_screen_buffer[pos] = color;
 									}
 								}
 
@@ -1123,7 +1137,7 @@ void gb_line()
 									{
 										val = ((loc & (0x03 << pal)) >> pal);
 										color = gb_master_palette[val];
-										game_screen_buffer[pos] = color;
+										gb_game_screen_buffer[pos] = color;
 									}
 								}
 
@@ -1153,7 +1167,7 @@ void gb_line()
 									{
 										val = ((loc & (0x03 << pal)) >> pal);
 										color = gb_master_palette[val];
-										game_screen_buffer[pos] = color;
+										gb_game_screen_buffer[pos] = color;
 									}
 								}
 
@@ -1346,6 +1360,23 @@ void gb_updates()
 				}
 				break;
 			}
+		}
+	}
+
+	if ((gb_io_joyp & 0x30) == 0x10) // buttons
+	{
+		if (((gb_game_buttons_previous ^ gb_game_buttons_current) & 0x0F) != 0x00 &&
+			((gb_game_buttons_previous ^ gb_game_buttons_current) & gb_game_buttons_current & 0x0F) == 0x00)
+		{
+			gb_io_if = (gb_io_if | 0x10); // interrupt
+		}
+	} 
+	else if ((gb_io_joyp & 0x30) == 0x20) // d-pad
+	{
+		if (((gb_game_buttons_previous ^ gb_game_buttons_current) & 0xF0) != 0x00 &&
+			((gb_game_buttons_previous ^ gb_game_buttons_current) & gb_game_buttons_current & 0xF0) == 0x00)
+		{
+			gb_io_if = (gb_io_if | 0x10); // interrupt
 		}
 	}
 }
@@ -1831,7 +1862,50 @@ void gb_run()
 		//0x27:{opcode:DAA,bytes:1,cycles:[4],operands:[],imm:true,flags:{Z:Z,N:-,H:0,C:C}}
 		case 0x27:
 		{
-			printf("DAA\n");
+			unsigned long temp = gb_reg_af.r8.a;
+
+			if ((gb_reg_af.r8.f & 0x40) == 0x40)
+			{
+				if ((gb_reg_af.r8.f & 0x20) == 0x20)
+				{
+					temp = (temp - 0x06) & 0xFF;
+				}
+			
+				if ((gb_reg_af.r8.f & 0x10) == 0x10)
+				{
+					temp = temp - 0x60;
+				}
+			}
+			else
+			{
+				if ((gb_reg_af.r8.f & 0x20) == 0x20 || (temp & 0x0F) > 0x09)
+				{
+					temp = temp + 0x06;
+				}
+			
+				if ((gb_reg_af.r8.f & 0x10) == 0x10 || temp > 0x9F)
+				{
+					temp = temp + 0x60;
+				}
+			}
+
+			if ((temp & 0x0100) == 0x0100)
+			{
+				gb_def_flag_c_set();
+			}
+
+			gb_reg_af.r8.a = (unsigned char)temp;
+			
+			if (gb_reg_af.r8.a == 0x00)
+			{
+				gb_def_flag_z_set();
+			}
+			else
+			{
+				gb_def_flag_z_clr();
+			}
+
+			gb_def_flag_h_clr();
 
 			gb_def_cycles(4);
 			break;
@@ -2091,8 +2165,6 @@ void gb_run()
 		//0x3F:{opcode:CCF,bytes:1,cycles:[4],operands:[],imm:true,flags:{Z:-,N:0,H:0,C:C}}
 		case 0x3F:
 		{
-			//printf("CCF\n");
-
 			// CCF
 			gb_def_flag_n_clr();
 			gb_def_flag_h_clr();
@@ -3775,8 +3847,6 @@ void gb_run()
 		//0xE8:{opcode:ADD,bytes:2,cycles:[16],operands:[{name:SP,imm:true},{name:e8,bytes:1,imm:true}],imm:true,flags:{Z:0,N:0,H:H,C:C}}
 		case 0xE8:
 		{
-			//printf("ADD SP,N\n");
-
 			// ADD SP,N
 			gb_def_read_8(gb_reg_pc.r16, gb_cpu_operand.r8.low);
 			gb_def_step(gb_reg_pc.r16, 1);
@@ -3868,8 +3938,6 @@ void gb_run()
 		//0xF1:{opcode:POP,bytes:1,cycles:[12],operands:[{name:AF,imm:true}],imm:true,flags:{Z:Z,N:N,H:H,C:C}}
 		case 0xF1:
 		{
-			//printf("POP AF\n");
-
 			// POP AF
 			gb_reg_af.r8.f = gb_read(gb_reg_sp.r16);
 			gb_reg_sp.r16 += 1;
@@ -3908,8 +3976,6 @@ void gb_run()
 		//0xF5:{opcode:PUSH,bytes:1,cycles:[16],operands:[{name:AF,imm:true}],imm:true,flags:{Z:-,N:-,H:-,C:-}}
 		case 0xF5:
 		{
-			//printf("PUSH AF\n");
-
 			// PUSH AF
 			gb_reg_sp.r16 -= 1;
 			gb_write(gb_reg_sp.r16, gb_reg_af.r8.a);
@@ -3946,8 +4012,6 @@ void gb_run()
 		//0xF8:{opcode:LD,bytes:2,cycles:[12],operands:[{name:HL,imm:true},{name:SP,inc:true,imm:true},{name:e8,bytes:1,imm:true}],imm:true,flags:{Z:0,N:0,H:H,C:C}}
 		case 0xF8:
 		{
-			//printf("LD HL,SP+N\n");
-
 			// LD HL,SP+N		
 			gb_def_read_8(gb_reg_pc.r16, gb_cpu_operand.r8.low);
 			gb_def_step(gb_reg_pc.r16, 1);
@@ -3964,8 +4028,6 @@ void gb_run()
 		//0xF9:{opcode:LD,bytes:1,cycles:[8],operands:[{name:SP,imm:true},{name:HL,imm:true}],imm:true,flags:{Z:-,N:-,H:-,C:-}}
 		case 0xF9:
 		{
-			//printf("LD SP,HL\n");
-
 			// LD SP,HL
 			gb_reg_sp.r16 = (unsigned short)gb_reg_hl.r16;
 			gb_def_cycles(8);
@@ -5094,7 +5156,7 @@ void openal_play()
 {
 	if (openal_enable == 0) return;
 
-	for (int i=0; i<AUDIO_LEN; i++) openal_data[i] = game_audio_buffer[i];
+	for (int i=0; i<AUDIO_LEN; i++) openal_data[i] = gb_game_audio_buffer[i];
 
 	alGenBuffers(1, &openal_buffer);
 	alBufferData(openal_buffer, AL_FORMAT_MONO8, openal_data, AUDIO_LEN, 61542); // calculations: 61542 = 1024 * 60.0988 + 1
@@ -5103,11 +5165,11 @@ void openal_play()
 	
 	for (int i=0; i<AUDIO_LEN; i++)
 	{
-		game_audio_buffer[i] = 0x80; // signed
+		gb_game_audio_buffer[i] = 0x80; // signed
 	}
 
-	game_audio_read = 0;
-	game_audio_write = 0;
+	gb_game_audio_read = 0;
+	gb_game_audio_write = 0;
 }
 
 
@@ -5251,7 +5313,7 @@ int main(const int argc, const char **argv)
 
 	for (unsigned long i=0; i<SCREEN_X*SCREEN_Y; i++)
 	{
-		game_screen_buffer[i] = 0;
+		gb_game_screen_buffer[i] = 0;
 	}
 
 	// TEMPORARY!
@@ -5273,11 +5335,39 @@ int main(const int argc, const char **argv)
 	glfwSetKeyCallback(opengl_window, opengl_keys);
 	glfwSetWindowSizeCallback(opengl_window, opengl_resize);
 
-	while (game_run > 0)
+	while (gb_game_run > 0)
 	{ 
 		glfwPollEvents();
 
-		if (glfwWindowShouldClose(opengl_window)) game_run = 0; // makes ESCAPE exit program
+		if (glfwWindowShouldClose(opengl_window)) gb_game_run = 0; // makes ESCAPE exit program
+
+
+		gb_game_buttons_previous = gb_game_buttons_current; // previous
+
+		if (opengl_keyboard_state[GLFW_KEY_W] == 0) gb_game_buttons_current = (gb_game_buttons_current | 0x40); // up
+		else gb_game_buttons_current = (gb_game_buttons_current & 0xBF);
+		
+		if (opengl_keyboard_state[GLFW_KEY_S] == 0) gb_game_buttons_current = (gb_game_buttons_current | 0x80); // down
+		else gb_game_buttons_current = (gb_game_buttons_current & 0x7F);
+
+		if (opengl_keyboard_state[GLFW_KEY_A] == 0) gb_game_buttons_current = (gb_game_buttons_current | 0x20); // left
+		else gb_game_buttons_current = (gb_game_buttons_current & 0xDF);
+		
+		if (opengl_keyboard_state[GLFW_KEY_D] == 0) gb_game_buttons_current = (gb_game_buttons_current | 0x10); // right
+		else gb_game_buttons_current = (gb_game_buttons_current & 0xEF);
+
+		if (opengl_keyboard_state[GLFW_KEY_K] == 0) gb_game_buttons_current = (gb_game_buttons_current | 0x01); // A
+		else gb_game_buttons_current = (gb_game_buttons_current & 0xFE);
+		
+		if (opengl_keyboard_state[GLFW_KEY_J] == 0) gb_game_buttons_current = (gb_game_buttons_current | 0x02); // B
+		else gb_game_buttons_current = (gb_game_buttons_current & 0xFD);
+
+		if (opengl_keyboard_state[GLFW_KEY_BACKSPACE] == 0) gb_game_buttons_current = (gb_game_buttons_current | 0x04); // select
+		else gb_game_buttons_current = (gb_game_buttons_current & 0xFB);
+		
+		if (opengl_keyboard_state[GLFW_KEY_ENTER] == 0) gb_game_buttons_current = (gb_game_buttons_current | 0x08); // start
+		else gb_game_buttons_current = (gb_game_buttons_current & 0xF7);
+
 
 		if (debug_wait_loop == 0)
 		{
@@ -5408,7 +5498,7 @@ int main(const int argc, const char **argv)
 		if (debug_draw_counter > 100)
 		{
 			debug_draw_counter = 0;
-			game_draw = 1;
+			gb_game_draw = 1;
 		}
 
 #endif	
@@ -5420,14 +5510,14 @@ int main(const int argc, const char **argv)
 		{
 			gb_ext_draw = 0;
 
-			game_wait();
+			gb_game_wait();
 
-			game_draw = 1;
+			gb_game_draw = 1;
 		}
 
-		if (game_draw > 0)
+		if (gb_game_draw > 0)
 		{
-			game_draw = 0;
+			gb_game_draw = 0;
 
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 			glLoadIdentity();
@@ -5438,9 +5528,9 @@ int main(const int argc, const char **argv)
 			{
 				for (unsigned long i=0; i<SCREEN_X; i++)
 				{
-					glColor3f((float)((game_screen_buffer[j*SCREEN_X+i] & 0x7C00) >> 10) / 32.0f,
-						(float)((game_screen_buffer[j*SCREEN_X+i] & 0x03E0) >> 5) / 32.0f,
-						(float)((game_screen_buffer[j*SCREEN_X+i] & 0x001F)) / 32.0f);
+					glColor3f((float)((gb_game_screen_buffer[j*SCREEN_X+i] & 0x7C00) >> 10) / 32.0f,
+						(float)((gb_game_screen_buffer[j*SCREEN_X+i] & 0x03E0) >> 5) / 32.0f,
+						(float)((gb_game_screen_buffer[j*SCREEN_X+i] & 0x001F)) / 32.0f);
 					glVertex2f(-1.0f + 1.0f * (float)(i*2+0) / (float)SCREEN_X, 1.0f - 1.0f * (float)(j*2+0) / (float)SCREEN_Y);
 					glVertex2f(-1.0f + 1.0f * (float)(i*2+0) / (float)SCREEN_X, 1.0f - 1.0f * (float)(j*2+2) / (float)SCREEN_Y);
 					glVertex2f(-1.0f + 1.0f * (float)(i*2+2) / (float)SCREEN_X, 1.0f - 1.0f * (float)(j*2+2) / (float)SCREEN_Y);
