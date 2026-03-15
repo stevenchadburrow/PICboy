@@ -70,6 +70,11 @@ void gb_game_wait()
 
 // variables for gameboy emulation
 
+// black, dark grey, light grey, white
+unsigned short gb_master_palette[4] = {
+	0x7FFF, 0x3DEF, 0x2108, 0x0000
+};
+
 // memory arrays
 unsigned char gb_mem_rom[2097152]; // bigger?
 unsigned char gb_mem_vram[16384];
@@ -1197,19 +1202,17 @@ void gb_write(unsigned short addr, unsigned char val)
 	}
 }
 
-// black, dark grey, light grey, white
-unsigned short gb_master_palette[4] = {
-	  0x7FFF, 0x3DEF, 0x2108, 0x0000
-};
-
-// draws line
+// draws a single line
 void gb_line()
 {
-	unsigned long loc, start, end, tile, left, right, shift, pos, pal, val, color;
-	signed long spr;
-
 	// disabled
 	if ((gb_io_lcdc & 0x80) == 0x00) return;
+
+	unsigned long loc, start, end, tile, left, right, shift, pos, pal, val, color;
+	signed int spr;
+	unsigned short pri_enable, pri_value;
+	
+	unsigned long line = gb_io_ly * 160;
 
 	// background
 	loc = 0x1800 + (((gb_io_ly + gb_io_scy) & 0xF8) << 2);
@@ -1228,24 +1231,24 @@ void gb_line()
 		tile += (((gb_io_ly + gb_io_scy) & 0x07) << 1);
 
 		left = gb_mem_vram[tile];
-		right = gb_mem_vram[tile+1];
+		right = (gb_mem_vram[tile+1] << 1);
 		
-		for (unsigned long i=0; i<8; i++)
+		for (signed long i=7; i>=0; i--)
 		{
 			shift = (x*8+i) - (gb_io_scx);
 			
 			if ((shift & 0x00FF) < 160)
 			{
-				pos = gb_io_ly*160 + shift;
-				pal = ((((left & 0x80) >> 7) | ((right & 0x80) >> 6)) << 1);
+				pos = line + shift;
+				pal = ((((left & 0x01)) | ((right & 0x02))) << 1);
 				val = ((gb_io_bgp & (0x03 << pal)) >> pal);
-				color = gb_master_palette[val];
 
-				gb_game_screen_buffer[pos] = color;
+				// pre-palette
+				gb_game_screen_buffer[pos] = val;
 			}
 
-			left <<= 1;
-			right <<= 1;
+			left = (left >> 1);
+			right = (right >> 1);
 		}
 	}
 
@@ -1270,24 +1273,24 @@ void gb_line()
 				tile += (((gb_io_ly - gb_io_wy) & 0x07) << 1);
 
 				left = gb_mem_vram[tile];
-				right = gb_mem_vram[tile+1];
+				right = (gb_mem_vram[tile+1] << 1);
 				
-				for (unsigned long i=0; i<8; i++)
+				for (signed int i=7; i>=0; i--)
 				{
 					shift = (x*8+i) + (gb_io_wx-7);
 					
 					if ((shift & 0x00FF) < 160)
 					{
-						pos = gb_io_ly*160 + shift;
-						pal = ((((left & 0x80) >> 7) | ((right & 0x80) >> 6)) << 1);
+						pos = line + shift;
+						pal = ((((left & 0x01)) | ((right & 0x02))) << 1);
 						val = ((gb_io_bgp & (0x03 << pal)) >> pal);
-						color = gb_master_palette[val];
-
-						gb_game_screen_buffer[pos] = color;
+						
+						// pre-palette
+						gb_game_screen_buffer[pos] = val;
 					}
 
-					left <<= 1;
-					right <<= 1;
+					left = (left >> 1);
+					right = (right >> 1);
 				}
 			}
 		}
@@ -1300,10 +1303,20 @@ void gb_line()
 		{
 			for (unsigned long i=0; i<160; i+=4)
 			{
-				spr = (signed long)(gb_io_ly - gb_mem_oam[i] + 16);
-
+				spr = (signed int)(gb_io_ly - gb_mem_oam[i] + 16);
+				
 				if (spr >= 0 && spr < 8)
 				{
+					if ((gb_mem_oam[i+3] & 0x80) == 0x80)
+					{
+						pri_enable = 1;
+						pri_value = (unsigned short)(gb_io_bgp & 0x03);
+					}
+					else
+					{
+						pri_enable = 0;
+					}
+
 					tile = (gb_mem_oam[i+2] << 4);
 
 					if ((gb_mem_oam[i+3] & 0x10) == 0x00) loc = gb_io_obp0;
@@ -1316,27 +1329,31 @@ void gb_line()
 							tile += (spr << 1);
 
 							left = gb_mem_vram[tile];
-							right = gb_mem_vram[tile+1];
+							right = (gb_mem_vram[tile+1] << 1);
 			
-							for (unsigned long j=0; j<8; j++)
+							for (signed int j=7; j>=0; j--)
 							{
 								shift = gb_mem_oam[i+1] + j - 8;
 								
 								if ((shift & 0x00FF) < 160)
 								{
-									pos = gb_io_ly*160 + shift;
-									pal = ((((left & 0x80) >> 7) | ((right & 0x80) >> 6)) << 1);
+									pos = line + shift;
+									pal = ((((left & 0x01)) | ((right & 0x02))) << 1);
 
 									if (pal != 0x00)
 									{
 										val = ((loc & (0x03 << pal)) >> pal);
-										color = gb_master_palette[val];
-										gb_game_screen_buffer[pos] = color;
+										
+										if (pri_enable == 0 || gb_game_screen_buffer[pos] == pri_value)
+										{
+											// pre-palette
+											gb_game_screen_buffer[pos] = val;
+										}
 									}
 								}
 
-								left <<= 1;
-								right <<= 1;
+								left = (left >> 1);
+								right = (right >> 1);
 							}
 							
 							break;
@@ -1346,27 +1363,31 @@ void gb_line()
 							tile += (spr << 1);
 
 							left = gb_mem_vram[tile];
-							right = gb_mem_vram[tile+1];
+							right = (gb_mem_vram[tile+1] << 1);
 			
-							for (unsigned long j=0; j<8; j++)
+							for (signed int j=7; j>=0; j--)
 							{
 								shift = gb_mem_oam[i+1] - j - 1;
 							
 								if ((shift & 0x00FF) < 160)
 								{
-									pos = gb_io_ly*160 + shift;
-									pal = ((((left & 0x80) >> 7) | ((right & 0x80) >> 6)) << 1);
+									pos = line + shift;
+									pal = ((((left & 0x01)) | ((right & 0x02))) << 1);
 								
 									if (pal != 0x00)
 									{
 										val = ((loc & (0x03 << pal)) >> pal);
-										color = gb_master_palette[val];
-										gb_game_screen_buffer[pos] = color;
+										
+										if (pri_enable == 0 || gb_game_screen_buffer[pos] == pri_value)
+										{
+											// pre-palette
+											gb_game_screen_buffer[pos] = val;
+										}
 									}
 								}
 
-								left <<= 1;
-								right <<= 1;
+								left = (left >> 1);
+								right = (right >> 1);
 							}
 
 							break;
@@ -1376,27 +1397,31 @@ void gb_line()
 							tile += ((8-spr) << 1);
 
 							left = gb_mem_vram[tile];
-							right = gb_mem_vram[tile+1];
+							right = (gb_mem_vram[tile+1] << 1);
 			
-							for (unsigned long j=0; j<8; j++)
+							for (signed int j=7; j>=0; j--)
 							{
 								shift = gb_mem_oam[i+1] + j - 8;
 								
 								if ((shift & 0x00FF) < 160)
 								{
-									pos = gb_io_ly*160 + shift;
-									pal = ((((left & 0x80) >> 7) | ((right & 0x80) >> 6)) << 1);
+									pos = line + shift;
+									pal = ((((left & 0x01)) | ((right & 0x02))) << 1);
 
 									if (pal != 0x00)
 									{
 										val = ((loc & (0x03 << pal)) >> pal);
-										color = gb_master_palette[val];
-										gb_game_screen_buffer[pos] = color;
+									
+										if (pri_enable == 0 || gb_game_screen_buffer[pos] == pri_value)
+										{
+											// pre-palette
+											gb_game_screen_buffer[pos] = val;
+										}
 									}
 								}
 
-								left <<= 1;
-								right <<= 1;
+								left = (left >> 1);
+								right = (right >> 1);
 							}
 
 							break;
@@ -1406,27 +1431,31 @@ void gb_line()
 							tile += ((8-spr) << 1);
 
 							left = gb_mem_vram[tile];
-							right = gb_mem_vram[tile+1];
+							right = (gb_mem_vram[tile+1] << 1);
 			
-							for (unsigned long j=0; j<8; j++)
+							for (signed int j=7; j>=0; j--)
 							{
 								shift = gb_mem_oam[i+1] - j - 1;
 							
 								if ((shift & 0x00FF) < 160)
 								{
-									pos = gb_io_ly*160 + shift;
-									pal = ((((left & 0x80) >> 7) | ((right & 0x80) >> 6)) << 1);
+									pos = line + shift;
+									pal = ((((left & 0x01)) | ((right & 0x02))) << 1);
 
 									if (pal != 0x00)
 									{
 										val = ((loc & (0x03 << pal)) >> pal);
-										color = gb_master_palette[val];
-										gb_game_screen_buffer[pos] = color;
+										
+										if (pri_enable == 0 || gb_game_screen_buffer[pos] == pri_value)
+										{
+											// pre-palette
+											gb_game_screen_buffer[pos] = val;
+										}
 									}
 								}
 
-								left <<= 1;
-								right <<= 1;
+								left = (left >> 1);
+								right = (right >> 1);
 							}
 
 							break;
@@ -1439,10 +1468,20 @@ void gb_line()
 		{
 			for (unsigned long i=0; i<160; i+=4)
 			{
-				spr = (signed long)(gb_io_ly - gb_mem_oam[i] + 16);
+				spr = (signed int)(gb_io_ly - gb_mem_oam[i] + 16);
 
 				if (spr >= 0 && spr < 16)
 				{
+					if ((gb_mem_oam[i+3] & 0x80) == 0x80)
+					{
+						pri_enable = 1;
+						pri_value = (unsigned short)(gb_io_bgp & 0x03);
+					}
+					else
+					{
+						pri_enable = 0;
+					}
+
 					tile = (gb_mem_oam[i+2] << 4);
 
 					if ((gb_mem_oam[i+3] & 0x10) == 0x00) loc = gb_io_obp0;
@@ -1455,27 +1494,31 @@ void gb_line()
 							tile += (spr << 1);
 
 							left = gb_mem_vram[tile];
-							right = gb_mem_vram[tile+1];
+							right = (gb_mem_vram[tile+1] << 1);
 			
-							for (unsigned long j=0; j<8; j++)
+							for (signed int j=7; j>=0; j--)
 							{
 								shift = gb_mem_oam[i+1] + j - 8;
 								
 								if ((shift & 0x00FF) < 160)
 								{
-									pos = gb_io_ly*160 + shift;
-									pal = ((((left & 0x80) >> 7) | ((right & 0x80) >> 6)) << 1);
+									pos = line + shift;
+									pal = ((((left & 0x01)) | ((right & 0x02))) << 1);
 
 									if (pal != 0x00)
 									{
 										val = ((loc & (0x03 << pal)) >> pal);
-										color = gb_master_palette[val];
-										gb_game_screen_buffer[pos] = color;
+										
+										if (pri_enable == 0 || gb_game_screen_buffer[pos] == pri_value)
+										{
+											// pre-palette
+											gb_game_screen_buffer[pos] = val;
+										}
 									}
 								}
 
-								left <<= 1;
-								right <<= 1;
+								left = (left >> 1);
+								right = (right >> 1);
 							}
 							
 							break;
@@ -1485,27 +1528,31 @@ void gb_line()
 							tile += (spr << 1);
 
 							left = gb_mem_vram[tile];
-							right = gb_mem_vram[tile+1];
+							right = (gb_mem_vram[tile+1] << 1);
 			
-							for (unsigned long j=0; j<8; j++)
+							for (signed int j=7; j>=0; j--)
 							{
 								shift = gb_mem_oam[i+1] - j - 1;
 							
 								if ((shift & 0x00FF) < 160)
 								{
-									pos = gb_io_ly*160 + shift;
-									pal = ((((left & 0x80) >> 7) | ((right & 0x80) >> 6)) << 1);
+									pos = line + shift;
+									pal = ((((left & 0x01)) | ((right & 0x02))) << 1);
 								
 									if (pal != 0x00)
 									{
 										val = ((loc & (0x03 << pal)) >> pal);
-										color = gb_master_palette[val];
-										gb_game_screen_buffer[pos] = color;
+										
+										if (pri_enable == 0 || gb_game_screen_buffer[pos] == pri_value)
+										{
+											// pre-palette
+											gb_game_screen_buffer[pos] = val;
+										}
 									}
 								}
 
-								left <<= 1;
-								right <<= 1;
+								left = (left >> 1);
+								right = (right >> 1);
 							}
 
 							break;
@@ -1515,27 +1562,31 @@ void gb_line()
 							tile += ((16-spr) << 1);
 
 							left = gb_mem_vram[tile];
-							right = gb_mem_vram[tile+1];
+							right = (gb_mem_vram[tile+1] << 1);
 			
-							for (unsigned long j=0; j<8; j++)
+							for (signed int j=7; j>=0; j--)
 							{
 								shift = gb_mem_oam[i+1] + j - 8;
 								
 								if ((shift & 0x00FF) < 160)
 								{
-									pos = gb_io_ly*160 + shift;
-									pal = ((((left & 0x80) >> 7) | ((right & 0x80) >> 6)) << 1);
+									pos = line + shift;
+									pal = ((((left & 0x01)) | ((right & 0x02))) << 1);
 
 									if (pal != 0x00)
 									{
 										val = ((loc & (0x03 << pal)) >> pal);
-										color = gb_master_palette[val];
-										gb_game_screen_buffer[pos] = color;
+										
+										if (pri_enable == 0 || gb_game_screen_buffer[pos] == pri_value)
+										{
+											// pre-palette
+											gb_game_screen_buffer[pos] = val;
+										}
 									}
 								}
 
-								left <<= 1;
-								right <<= 1;
+								left = (left >> 1);
+								right = (right >> 1);
 							}
 
 							break;
@@ -1545,27 +1596,31 @@ void gb_line()
 							tile += ((16-spr) << 1);
 
 							left = gb_mem_vram[tile];
-							right = gb_mem_vram[tile+1];
+							right = (gb_mem_vram[tile+1] << 1);
 			
-							for (unsigned long j=0; j<8; j++)
+							for (signed int j=7; j>=0; j--)
 							{
 								shift = gb_mem_oam[i+1] - j - 1;
 							
 								if ((shift & 0x00FF) < 160)
 								{
-									pos = gb_io_ly*160 + shift;
-									pal = ((((left & 0x80) >> 7) | ((right & 0x80) >> 6)) << 1);
+									pos = line + shift;
+									pal = ((((left & 0x01)) | ((right & 0x02))) << 1);
 
 									if (pal != 0x00)
 									{
 										val = ((loc & (0x03 << pal)) >> pal);
-										color = gb_master_palette[val];
-										gb_game_screen_buffer[pos] = color;
+										
+										if (pri_enable == 0 || gb_game_screen_buffer[pos] == pri_value)
+										{
+											// pre-palette
+											gb_game_screen_buffer[pos] = val;
+										}
 									}
 								}
 
-								left <<= 1;
-								right <<= 1;
+								left = (left >> 1);
+								right = (right >> 1);
 							}
 
 							break;
@@ -1574,6 +1629,12 @@ void gb_line()
 				}
 			}		
 		}
+	}
+
+	// replace with palette	
+	for (int i=0; i<160; i++)
+	{
+		gb_game_screen_buffer[line + i] = gb_master_palette[gb_game_screen_buffer[line + i]];
 	}
 }
 
@@ -5752,37 +5813,8 @@ int main(const int argc, const char **argv)
 
 	while (gb_game_run > 0)
 	{ 
-		glfwPollEvents();
-
+		
 		if (glfwWindowShouldClose(opengl_window)) gb_game_run = 0; // makes ESCAPE exit program
-
-
-		gb_game_buttons_previous = gb_game_buttons_current; // previous
-
-		if (opengl_keyboard_state[GLFW_KEY_W] == 0) gb_game_buttons_current = (gb_game_buttons_current | 0x40); // up
-		else gb_game_buttons_current = (gb_game_buttons_current & 0xBF);
-		
-		if (opengl_keyboard_state[GLFW_KEY_S] == 0) gb_game_buttons_current = (gb_game_buttons_current | 0x80); // down
-		else gb_game_buttons_current = (gb_game_buttons_current & 0x7F);
-
-		if (opengl_keyboard_state[GLFW_KEY_A] == 0) gb_game_buttons_current = (gb_game_buttons_current | 0x20); // left
-		else gb_game_buttons_current = (gb_game_buttons_current & 0xDF);
-		
-		if (opengl_keyboard_state[GLFW_KEY_D] == 0) gb_game_buttons_current = (gb_game_buttons_current | 0x10); // right
-		else gb_game_buttons_current = (gb_game_buttons_current & 0xEF);
-
-		if (opengl_keyboard_state[GLFW_KEY_K] == 0) gb_game_buttons_current = (gb_game_buttons_current | 0x01); // A
-		else gb_game_buttons_current = (gb_game_buttons_current & 0xFE);
-		
-		if (opengl_keyboard_state[GLFW_KEY_J] == 0) gb_game_buttons_current = (gb_game_buttons_current | 0x02); // B
-		else gb_game_buttons_current = (gb_game_buttons_current & 0xFD);
-
-		if (opengl_keyboard_state[GLFW_KEY_BACKSPACE] == 0) gb_game_buttons_current = (gb_game_buttons_current | 0x04); // select
-		else gb_game_buttons_current = (gb_game_buttons_current & 0xFB);
-		
-		if (opengl_keyboard_state[GLFW_KEY_ENTER] == 0) gb_game_buttons_current = (gb_game_buttons_current | 0x08); // start
-		else gb_game_buttons_current = (gb_game_buttons_current & 0xF7);
-
 
 #ifdef DEBUG
 		if (debug_wait_loop == 0)
@@ -5966,6 +5998,34 @@ int main(const int argc, const char **argv)
 
 			glfwSwapInterval(0); // turn off v-sync
 			glfwSwapBuffers(opengl_window);
+
+			glfwPollEvents();
+
+			gb_game_buttons_previous = gb_game_buttons_current; // previous
+
+			if (opengl_keyboard_state[GLFW_KEY_W] == 0) gb_game_buttons_current = (gb_game_buttons_current | 0x40); // up
+			else gb_game_buttons_current = (gb_game_buttons_current & 0xBF);
+			
+			if (opengl_keyboard_state[GLFW_KEY_S] == 0) gb_game_buttons_current = (gb_game_buttons_current | 0x80); // down
+			else gb_game_buttons_current = (gb_game_buttons_current & 0x7F);
+
+			if (opengl_keyboard_state[GLFW_KEY_A] == 0) gb_game_buttons_current = (gb_game_buttons_current | 0x20); // left
+			else gb_game_buttons_current = (gb_game_buttons_current & 0xDF);
+			
+			if (opengl_keyboard_state[GLFW_KEY_D] == 0) gb_game_buttons_current = (gb_game_buttons_current | 0x10); // right
+			else gb_game_buttons_current = (gb_game_buttons_current & 0xEF);
+
+			if (opengl_keyboard_state[GLFW_KEY_K] == 0) gb_game_buttons_current = (gb_game_buttons_current | 0x01); // A
+			else gb_game_buttons_current = (gb_game_buttons_current & 0xFE);
+			
+			if (opengl_keyboard_state[GLFW_KEY_J] == 0) gb_game_buttons_current = (gb_game_buttons_current | 0x02); // B
+			else gb_game_buttons_current = (gb_game_buttons_current & 0xFD);
+
+			if (opengl_keyboard_state[GLFW_KEY_BACKSPACE] == 0) gb_game_buttons_current = (gb_game_buttons_current | 0x04); // select
+			else gb_game_buttons_current = (gb_game_buttons_current & 0xFB);
+			
+			if (opengl_keyboard_state[GLFW_KEY_ENTER] == 0) gb_game_buttons_current = (gb_game_buttons_current | 0x08); // start
+			else gb_game_buttons_current = (gb_game_buttons_current & 0xF7);
 		}
 	}
 
