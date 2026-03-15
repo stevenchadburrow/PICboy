@@ -6,15 +6,19 @@
 // gcc -o PICboy.o PICboy.c -lglfw -lGL -lopenal
 
 //#define DEBUG
+
+#ifdef DEBUG
 unsigned long debug_cycles_address = 0xFFFF;
-unsigned long debug_cycles_start = 0; //1;
+unsigned long debug_cycles_occurances = 1;
+unsigned long debug_cycles_start = 0; // 0; //1;
 unsigned long debug_cycles_current = 0;
 unsigned long debug_cycles_next = 0; //800000;
 unsigned long debug_wait_loop = 0;
 unsigned long debug_wait_hold = 0;
 unsigned long debug_wait_pause = 0;
 unsigned long debug_draw_counter = 0;
-
+unsigned long debug_inst_list[512];
+#endif
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -67,17 +71,15 @@ void gb_game_wait()
 // variables for gameboy emulation
 
 // memory arrays
-unsigned char gb_mem_rom[32768]; // needs to be bigger!
+unsigned char gb_mem_rom[2097152]; // bigger?
 unsigned char gb_mem_vram[16384];
-unsigned char gb_mem_eram[8192]; // needs to be bigger!
+unsigned char gb_mem_eram[32768]; // bigger?
 unsigned char gb_mem_wram[32768];
 unsigned char gb_mem_oam[160];
 unsigned char gb_mem_hram[127];
 
 // memory banks
-unsigned char gb_bank_rom = 1;
 unsigned char gb_bank_vram = 0;
-unsigned char gb_bank_eram = 0;
 unsigned char gb_bank_wram = 1;
 
 // cpu registers
@@ -180,6 +182,17 @@ unsigned long gb_io_wx = 0;
 unsigned long gb_io_boot = 0;
 unsigned long gb_io_ie = 0;
 
+// cart registers
+unsigned long gb_cart_type = 0;
+unsigned long gb_cart_mbc = 0;
+unsigned long gb_cart_enable_ram = 0;
+unsigned long gb_cart_mask_rom = 1;
+unsigned long gb_cart_mask_ram = 0;
+unsigned long gb_cart_bank_rom = 1;
+unsigned long gb_cart_bank_ram = 0;
+unsigned long gb_cart_bank_mode = 0;
+unsigned long gb_cart_bank_addr = 0;
+
 // extra registers
 unsigned long gb_ext_lx = 0;
 unsigned long gb_ext_halt = 0;
@@ -188,6 +201,7 @@ unsigned long gb_ext_div_cycles = 0;
 unsigned long gb_ext_tima_cycles = 0;
 unsigned long gb_ext_sb_cycles = 0;
 unsigned long gb_ext_dma_addr = 0;
+unsigned long gb_ext_int_delay = 0;
 
 
 
@@ -204,15 +218,15 @@ unsigned long gb_ext_dma_addr = 0;
 
 // 16-bit operations
 #define gb_def_ld_16(A, B) { \
-	gb_cpu_result = (unsigned long)(B); \
+	gb_cpu_result = (unsigned long)(B & 0xFFFF); \
 	A = (unsigned short)(gb_cpu_result); }
 
 #define gb_def_inc_16(A) { \
-	gb_cpu_result = (unsigned long)((unsigned short)A + 1); \
+	gb_cpu_result = (unsigned long)(((unsigned short)A + 1) & 0xFFFF); \
 	A = (unsigned short)(gb_cpu_result); }
 
 #define gb_def_dec_16(A) { \
-	gb_cpu_result = (unsigned long)((unsigned short)A - 1); \
+	gb_cpu_result = (unsigned long)(((unsigned short)A - 1) & 0xFFFF); \
 	A = (unsigned short)(gb_cpu_result); }
 
 #define gb_def_add_16(A, B) { \
@@ -238,7 +252,7 @@ unsigned long gb_ext_dma_addr = 0;
 
 // 8-bit operations
 #define gb_def_ld_8(A, B) { \
-	gb_cpu_result = (unsigned long)((unsigned char)B); \
+	gb_cpu_result = (unsigned long)((unsigned char)B & 0xFF); \
 	A = (unsigned char)(gb_cpu_result); }
 
 #define gb_def_inc_8(A) { \
@@ -407,7 +421,7 @@ unsigned long gb_ext_dma_addr = 0;
 void gb_initialize()
 {
 	gb_cpu_halt = 0x00;
-	gb_cpu_ime = 0x01;
+	gb_cpu_ime = 0x00;
 
 	gb_reg_af.r8.a = 0x01;
 	gb_reg_af.r8.f = 0x80;
@@ -449,11 +463,102 @@ void gb_initialize()
 
 	gb_io_ie = 0x00;
 
+	gb_cart_type = gb_mem_rom[0x0147];
+
+	if (gb_cart_type == 0x00 || 
+		gb_cart_type == 0x08 ||
+		gb_cart_type == 0x09)
+	{
+		gb_cart_mbc = 0x00; // no mbc
+	}
+	else if (gb_cart_type == 0x01 ||
+		gb_cart_type == 0x02 ||
+		gb_cart_type == 0x03)
+	{
+		gb_cart_mbc = 0x01; // mbc1
+	}
+	else if (gb_cart_type == 0x05 ||
+		gb_cart_type == 0x06)
+	{
+		gb_cart_mbc = 0x02; // mbc2
+	}
+	else if (gb_cart_type == 0x0F ||
+		gb_cart_type == 0x10 ||
+		gb_cart_type == 0x11 ||
+		gb_cart_type == 0x12 ||
+		gb_cart_type == 0x13)
+	{
+		gb_cart_mbc = 0x03; // mbc3
+	}
+	else if (gb_cart_type == 0x19 ||
+		gb_cart_type == 0x1A ||
+		gb_cart_type == 0x1B ||
+		gb_cart_type == 0x1C ||
+		gb_cart_type == 0x1D ||
+		gb_cart_type == 0x1E)
+	{
+		gb_cart_mbc = 0x05; // mbc5
+	}
+	else
+	{
+		gb_cart_mbc = 0xFF; // other
+	}
+
+	if (gb_mem_rom[0x0148] <= 0x08)
+	{
+		gb_cart_mask_rom = (0x01 << (gb_mem_rom[0x0148]+2)) - 0x01;
+	}
+	else
+	{
+		gb_cart_mask_rom = 0x01;
+	}
+
+	gb_cart_mask_rom = (gb_cart_mask_rom << 13);
+	gb_cart_mask_rom = (gb_cart_mask_rom | 0x00003FFF);
+	
+	switch (gb_mem_rom[0x0149])
+	{
+		case 0x00:
+		{
+			gb_cart_mask_ram = 0x00;
+			break;
+		}
+		case 0x02:
+		{
+			gb_cart_mask_ram = 0x01;
+			break;
+		}
+		case 0x03:
+		{
+			gb_cart_mask_ram = 0x03;
+			break;
+		}
+		case 0x04:
+		{
+			gb_cart_mask_ram = 0x0F;
+			break;
+		}
+		case 0x05:
+		{
+			gb_cart_mask_ram = 0x07;
+			break;
+		}
+		default:
+		{
+			gb_cart_mask_ram = 0x00;
+		}
+	}
+
+	gb_cart_mask_ram = (gb_cart_mask_ram << 12);
+	gb_cart_mask_ram = (gb_cart_mask_ram | 0x00001FFF);
+
 	for (unsigned short i=0; i<8192; i++) gb_mem_vram[i] = 0x00;
 
 	gb_ext_lx = 0;
 	gb_ext_halt = 0;
 	gb_ext_draw = 0;
+	gb_ext_div_cycles = 0x00;
+	gb_ext_tima_cycles = 0x00;
 }
 
 // read from memory
@@ -461,11 +566,60 @@ unsigned char gb_read(unsigned short addr)
 {
 	if (addr < 0x4000) // rom, fixed bank
 	{
-		return gb_mem_rom[addr];
+		switch (gb_cart_mbc)
+		{
+			case 0x00:
+			{
+				return gb_mem_rom[addr];
+				break;
+			}
+			case 0x01:
+			{
+				if (gb_cart_bank_mode == 0x00)
+				{
+					return gb_mem_rom[addr];
+				}
+				else
+				{
+					gb_cart_bank_addr = (gb_cart_bank_ram << 19) | (addr & 0x3FFF);
+					gb_cart_bank_addr = (gb_cart_bank_addr & gb_cart_mask_rom);
+					
+					return gb_mem_rom[gb_cart_bank_addr];
+				}
+
+				break;	
+			}
+			default:
+			{
+				return gb_mem_rom[addr];
+				break;
+			}
+		}
 	}
 	else if (addr < 0x8000) // rom, switchable bank
 	{
-		return gb_mem_rom[(addr-0x4000)+0x4000*gb_bank_rom];
+		switch (gb_cart_mbc)
+		{
+			case 0x00:
+			{
+				return gb_mem_rom[addr];
+				break;
+			}
+			case 0x01:
+			{
+				gb_cart_bank_addr = (gb_cart_bank_ram << 19) | (gb_cart_bank_rom << 14) | (addr & 0x3FFF);
+				gb_cart_bank_addr = (gb_cart_bank_addr & gb_cart_mask_rom);
+
+				return gb_mem_rom[gb_cart_bank_addr];		
+
+				break;	
+			}
+			default:
+			{
+				return gb_mem_rom[addr];
+				break;
+			}
+		}
 	}
 	else if (addr < 0xA000) // video ram
 	{
@@ -473,7 +627,42 @@ unsigned char gb_read(unsigned short addr)
 	}
 	else if (addr < 0xC000) // external ram
 	{
-		return gb_mem_eram[(addr-0xA000)+0x2000*gb_bank_eram];
+		switch (gb_cart_mbc)
+		{
+			case 0x00:
+			{
+				return gb_mem_eram[addr-0xA000];
+				break;
+			}
+			case 0x01:
+			{
+				if (gb_cart_enable_ram > 0)
+				{
+					if (gb_cart_bank_mode == 0x00)
+					{
+						return gb_mem_eram[addr-0xA000];
+					}
+					else
+					{
+						gb_cart_bank_addr = (gb_cart_bank_ram << 13) | (addr & 0x1FFF);
+						gb_cart_bank_addr = (gb_cart_bank_addr & gb_cart_mask_ram);
+
+						return gb_mem_eram[gb_cart_bank_addr];
+					}
+				}
+				else
+				{
+					return 0xFF;
+				}		
+
+				break;	
+			}
+			default:
+			{
+				return gb_mem_eram[addr-0xA000];
+				break;
+			}
+		}
 	}
 	else if (addr < 0xD000) // work ram, fixed bank
 	{
@@ -483,9 +672,9 @@ unsigned char gb_read(unsigned short addr)
 	{
 		return gb_mem_wram[(addr-0xD000)+0x1000*gb_bank_wram];
 	}
-	else if (addr < 0xFE00) // echo ram, do nothing
+	else if (addr < 0xFE00) // echo ram
 	{
-		return 0xFF;
+		return gb_mem_wram[(addr-0xE000)+0x1000*gb_bank_wram];
 	}
 	else if (addr < 0xFEA0) // oam ram
 	{
@@ -643,9 +832,69 @@ void gb_write(unsigned short addr, unsigned char val)
 {
 	if (addr < 0x4000) // rom, fixed bank
 	{
+		switch (gb_cart_mbc)
+		{
+			case 0x00:
+			{
+				break;
+			}
+			case 0x01:
+			{
+				if (addr < 0x2000)
+				{
+					if ((val & 0x0F) == 0x0A)
+					{
+						gb_cart_enable_ram = 1;
+					}
+					else
+					{
+						gb_cart_enable_ram = 0;
+					}
+				}
+				else
+				{
+					gb_cart_bank_rom = (unsigned char)(val & 0x1F);
+		
+					if ((gb_cart_bank_rom & gb_cart_mask_rom) == 0x00)
+					{
+						gb_cart_bank_rom = 0x01;
+					}
+				}
+
+				break;
+			}
+			default:
+			{
+				break;
+			}
+		}
 	}
 	else if (addr < 0x8000) // rom, switchable bank
 	{
+		switch (gb_cart_mbc)
+		{
+			case 0x00:
+			{
+				break;
+			}
+			case 0x01:
+			{
+				if (addr < 0x600)
+				{
+					gb_cart_bank_ram = (unsigned char)(val & 0x03);
+				}
+				else
+				{
+					gb_cart_bank_mode = (unsigned char)(val & 0x01);
+				}
+
+				break;
+			}
+			default:
+			{
+				break;
+			}
+		}
 	}
 	else if (addr < 0xA000) // video ram
 	{
@@ -653,7 +902,7 @@ void gb_write(unsigned short addr, unsigned char val)
 	}
 	else if (addr < 0xC000) // external ram
 	{
-		gb_mem_eram[(addr-0xA000)+0x2000*gb_bank_eram] = val;
+		gb_mem_eram[addr-0xA000] = val;
 	}
 	else if (addr < 0xD000) // work ram, fixed bank
 	{
@@ -665,6 +914,7 @@ void gb_write(unsigned short addr, unsigned char val)
 	}
 	else if (addr < 0xFE00) // echo ram, do nothing
 	{
+		gb_mem_wram[(addr-0xE000)+0x1000*gb_bank_wram] = val;
 	}
 	else if (addr < 0xFEA0) // oam ram
 	{
@@ -695,6 +945,7 @@ void gb_write(unsigned short addr, unsigned char val)
 			case 0xFF04: // DIV
 			{
 				gb_io_div = 0x00;
+				gb_ext_div_cycles = 0x00;
 				break;
 			}
 			case 0xFF05: // TIMA
@@ -862,40 +1113,43 @@ void gb_line()
 	// window
 	if ((gb_io_lcdc & 0x20) == 0x20)
 	{
-		loc = 0x1800 + (((gb_io_ly + gb_io_wy) & 0xF8) << 2);
-
-		if ((gb_io_lcdc & 0x40) == 0x40) loc += 0x0400;
-
-		start = 0;
-		end = 21;
-
-		for (unsigned long x=start; x<end; x++)
+		if (gb_io_ly >= gb_io_wy && gb_io_ly < (gb_io_wy + 144))
 		{
-			tile = (gb_mem_vram[loc + (x & 0x1F)] << 4);
+			loc = 0x1800 + (((gb_io_ly - gb_io_wy) & 0xF8) << 2);
 
-			if (tile < 2048 && (gb_io_lcdc & 0x10) == 0x00) tile += 0x1000;
+			if ((gb_io_lcdc & 0x40) == 0x40) loc += 0x0400;
 
-			tile += (((gb_io_ly + gb_io_wy) & 0x07) << 1);
+			start = 0;
+			end = 21;
 
-			left = gb_mem_vram[tile];
-			right = gb_mem_vram[tile+1];
-			
-			for (unsigned long i=0; i<8; i++)
+			for (unsigned long x=start; x<end; x++)
 			{
-				shift = (x*8+i) + (gb_io_wx-6);
+				tile = (gb_mem_vram[loc + (x & 0x1F)] << 4);
+
+				if (tile < 2048 && (gb_io_lcdc & 0x10) == 0x00) tile += 0x1000;
+
+				tile += (((gb_io_ly - gb_io_wy) & 0x07) << 1);
+
+				left = gb_mem_vram[tile];
+				right = gb_mem_vram[tile+1];
 				
-				if ((shift & 0x00FF) < 160)
+				for (unsigned long i=0; i<8; i++)
 				{
-					pos = gb_io_ly*160 + shift;
-					pal = ((((left & 0x80) >> 7) | ((right & 0x80) >> 6)) << 1);
-					val = ((gb_io_bgp & (0x03 << pal)) >> pal);
-					color = gb_master_palette[val];
+					shift = (x*8+i) + (gb_io_wx-7);
+					
+					if ((shift & 0x00FF) < 160)
+					{
+						pos = gb_io_ly*160 + shift;
+						pal = ((((left & 0x80) >> 7) | ((right & 0x80) >> 6)) << 1);
+						val = ((gb_io_bgp & (0x03 << pal)) >> pal);
+						color = gb_master_palette[val];
 
-					gb_game_screen_buffer[pos] = color;
+						gb_game_screen_buffer[pos] = color;
+					}
+
+					left <<= 1;
+					right <<= 1;
 				}
-
-				left <<= 1;
-				right <<= 1;
 			}
 		}
 	}
@@ -1228,7 +1482,7 @@ void gb_updates()
 	{
 		if ((gb_io_stat & 0x03) != 0x01 && (gb_io_stat & 0x10) == 0x10)
 		{
-			gb_io_if = (gb_io_if | 0x02); // interrupt
+			if ((gb_io_lcdc & 0x80) == 0x80) gb_io_if = (gb_io_if | 0x02); // interrupt
 		}
 
 		gb_io_stat = ((gb_io_stat & 0xFC) | 0x01);
@@ -1239,7 +1493,7 @@ void gb_updates()
 		{
 			if ((gb_io_stat & 0x03) != 0x02 && (gb_io_stat & 0x20) == 0x20)
 			{
-				gb_io_if = (gb_io_if | 0x02); // interrupt
+				if ((gb_io_lcdc & 0x80) == 0x80) gb_io_if = (gb_io_if | 0x02); // interrupt
 			}
 
 			gb_io_stat = ((gb_io_stat & 0xFC) | 0x02);
@@ -1254,7 +1508,7 @@ void gb_updates()
 			{
 				if ((gb_io_stat & 0x08) == 0x08)
 				{
-					gb_io_if = (gb_io_if | 0x02); // interrupt
+					if ((gb_io_lcdc & 0x80) == 0x80) gb_io_if = (gb_io_if | 0x02); // interrupt
 				}
 
 				gb_line();
@@ -1276,7 +1530,7 @@ void gb_updates()
 	{
 		if ((gb_io_stat & 0x40) == 0x40)
 		{
-			gb_io_if = (gb_io_if | 0x02); // interrupt
+			if ((gb_io_lcdc & 0x80) == 0x80) gb_io_if = (gb_io_if | 0x02); // interrupt
 		}
 
 		gb_io_stat = ((gb_io_stat & 0xFB) | 0x04);
@@ -1389,57 +1643,107 @@ void gb_interrupts()
 		gb_cpu_halt = 0;
 	}
 
-	if (gb_cpu_ime == 0x00) return;
+	if (gb_cpu_ime == 0x00)
+	{
+		gb_ext_int_delay = 0;	
+
+		return;
+	}
 
 	if ((gb_io_ie & gb_io_if & 0x01)) // vblank
 	{
-		//printf("VBLANK\n");
+		if (gb_ext_int_delay < 1)
+		{
+			gb_ext_int_delay += 1;
+		}
+		else
+		{
+			gb_ext_int_delay = 0;
 
-		gb_io_if = (gb_io_if & 0xFE);
-		gb_def_push_16(gb_reg_pc.r16);
-		gb_reg_pc.r16 = 0x0040;
-		gb_def_cycles(20);
-		gb_cpu_ime = 0;
+			//printf("VBLANK\n");
+
+			gb_io_if = (gb_io_if & 0xFE);
+			gb_def_push_16(gb_reg_pc.r16);
+			gb_reg_pc.r16 = 0x0040;
+			gb_def_cycles(20);
+			gb_cpu_ime = 0;
+		}
 	}
 	else if ((gb_io_ie & gb_io_if & 0x02)) // lcd/stat
 	{
-		//printf("LCD/STAT %02X\n", (unsigned char)gb_io_stat);
+		if (gb_ext_int_delay < 1)
+		{
+			gb_ext_int_delay += 1;
+		}
+		else
+		{
+			gb_ext_int_delay = 0;
 
-		gb_io_if = (gb_io_if & 0xFD);
-		gb_def_push_16(gb_reg_pc.r16);
-		gb_reg_pc.r16 = 0x0048;
-		gb_def_cycles(20);
-		gb_cpu_ime = 0;
+			//printf("LCD/STAT %02X\n", (unsigned char)gb_io_stat);
+
+			gb_io_if = (gb_io_if & 0xFD);
+			gb_def_push_16(gb_reg_pc.r16);
+			gb_reg_pc.r16 = 0x0048;
+			gb_def_cycles(20);
+			gb_cpu_ime = 0;
+		}
 	}
 	else if ((gb_io_ie & gb_io_if & 0x04)) // timer
 	{
-		//printf("TIMER\n");
+		if (gb_ext_int_delay < 1)
+		{
+			gb_ext_int_delay += 1;
+		}
+		else
+		{
+			gb_ext_int_delay = 0;
 
-		gb_io_if = (gb_io_if & 0xFB);
-		gb_def_push_16(gb_reg_pc.r16);
-		gb_reg_pc.r16 = 0x0050;
-		gb_def_cycles(20);
-		gb_cpu_ime = 0;
+			//printf("TIMER\n");
+
+			gb_io_if = (gb_io_if & 0xFB);
+			gb_def_push_16(gb_reg_pc.r16);
+			gb_reg_pc.r16 = 0x0050;
+			gb_def_cycles(20);
+			gb_cpu_ime = 0;
+		}
 	}
 	else if ((gb_io_ie & gb_io_if & 0x08)) // serial
 	{
-		//printf("SERIAL\n");
+		if (gb_ext_int_delay < 1)
+		{
+			gb_ext_int_delay += 1;
+		}
+		else
+		{
+			gb_ext_int_delay = 0;
 
-		gb_io_if = (gb_io_if & 0xF7);
-		gb_def_push_16(gb_reg_pc.r16);
-		gb_reg_pc.r16 = 0x0058;
-		gb_def_cycles(20);
-		gb_cpu_ime = 0;
+			//printf("SERIAL\n");
+
+			gb_io_if = (gb_io_if & 0xF7);
+			gb_def_push_16(gb_reg_pc.r16);
+			gb_reg_pc.r16 = 0x0058;
+			gb_def_cycles(20);
+			gb_cpu_ime = 0;
+		}
 	}
 	else if ((gb_io_ie & gb_io_if & 0x10)) // joypad
 	{
-		//printf("JOYPAD\n");
+		if (gb_ext_int_delay < 1)
+		{
+			gb_ext_int_delay += 1;
+		}
+		else
+		{
+			gb_ext_int_delay = 0;
 
-		gb_io_if = (gb_io_if & 0xEF);
-		gb_def_push_16(gb_reg_pc.r16);
-		gb_reg_pc.r16 = 0x0060;
-		gb_def_cycles(20);
-		gb_cpu_ime = 0;
+			//printf("JOYPAD\n");
+
+			gb_io_if = (gb_io_if & 0xEF);
+			gb_def_push_16(gb_reg_pc.r16);
+			gb_reg_pc.r16 = 0x0060;
+			gb_def_cycles(20);
+			gb_cpu_ime = 0;
+		}
 	}
 }
 
@@ -1456,11 +1760,14 @@ void gb_run()
 	gb_def_read_8(gb_reg_pc.r16, gb_cpu_opcode);
 
 #ifdef DEBUG
-	printf("%04X: %02X - A=%02X B=%02X C=%02X D=%02X E=%02X F=%02X H=%02X L=%02X SP=%04X IME=%02X IE=%02X IF=%02X\n", gb_reg_pc.r16, gb_cpu_opcode,
+	debug_inst_list[gb_cpu_opcode]++;
+
+	printf("%02X:%04X: %02X - A=%02X B=%02X C=%02X D=%02X E=%02X F=%02X H=%02X L=%02X SP=%04X IME=%02X IE=%02X IF=%02X\n", 
+		(unsigned char)gb_cart_bank_rom, gb_reg_pc.r16, gb_cpu_opcode,
 		gb_reg_af.r8.a, gb_reg_bc.r8.b, gb_reg_bc.r8.c, gb_reg_de.r8.d, gb_reg_de.r8.e, gb_reg_af.r8.f, gb_reg_hl.r8.h, gb_reg_hl.r8.l, gb_reg_sp.r16, 
 		(unsigned char)gb_cpu_ime, (unsigned char)gb_io_ie, (unsigned char)gb_io_if);
 
-	printf("*%02X %02X %02X\n", (unsigned char)gb_mem_hram[0x26], (unsigned char)gb_mem_hram[0x70], (unsigned char)gb_io_stat);
+	printf("*LCDC=%02X STAT=%02X\n", (unsigned char)gb_io_lcdc, (unsigned char)gb_io_stat);
 
 #endif
 
@@ -1630,6 +1937,7 @@ void gb_run()
 
 			// STOP
 			gb_io_div = 0x00;
+			gb_ext_div_cycles = 0x00;
 			gb_def_read_8(gb_reg_pc.r16, gb_cpu_operand.r8.low);
 			gb_def_step(gb_reg_pc.r16, 1);
 			gb_def_cycles(4);
@@ -3961,6 +4269,8 @@ void gb_run()
 		//0xF3:{opcode:DI,bytes:1,cycles:[4],operands:[],imm:true,flags:{Z:-,N:-,H:-,C:-}}
 		case 0xF3:
 		{
+			//printf("DI %04X\n", (unsigned short)gb_reg_pc.r16);
+
 			// DI
 			gb_cpu_ime = 0;
 			gb_def_cycles(4);
@@ -4048,6 +4358,8 @@ void gb_run()
 		//0xFB:{opcode:EI,bytes:1,cycles:[4],operands:[],imm:true,flags:{Z:-,N:-,H:-,C:-}}
 		case 0xFB:
 		{
+			//printf("EI %04X\n", (unsigned short)gb_reg_pc.r16);
+
 			// EI
 			gb_cpu_ime = 1;
 			gb_def_cycles(4);
@@ -4098,6 +4410,8 @@ void gb_run()
 			gb_def_read_8(gb_reg_pc.r16, gb_cpu_opcode);
 
 #ifdef DEBUG
+			debug_inst_list[gb_cpu_opcode + 256]++;
+
 			printf("  %04X: %02X\n", gb_reg_pc.r16, gb_cpu_opcode);
 #endif
 
@@ -5255,6 +5569,10 @@ void opengl_resize(GLFWwindow *window, int width, int height)
 
 int main(const int argc, const char **argv)
 {
+#ifdef DEBUG
+	for (int i=0; i<512; i++) debug_inst_list[i] = 0;
+#endif
+
 	printf("PICboy\n");
 	printf("A Gameboy (Color) Emulator\n");
 	printf("Using OpenGL/GLFW for Video and Keyboard, and OpenAL for Audio\n");
@@ -5309,17 +5627,22 @@ int main(const int argc, const char **argv)
 
 	fclose(input);
 
+	printf("ROM Size: %lu\n", loc);
+
 	gb_initialize();
+
+	if (gb_cart_mbc != 0xFF)
+	{
+		printf("Found MBC%d Cart ROM\n", (unsigned int)gb_cart_mbc);
+	}
+	else
+	{
+		printf("Unsupported Cart ROM\n");
+	}
 
 	for (unsigned long i=0; i<SCREEN_X*SCREEN_Y; i++)
 	{
 		gb_game_screen_buffer[i] = 0;
-	}
-
-	// TEMPORARY!
-	for (unsigned long i=0; i<8192; i++)
-	{
-		gb_mem_vram[i] = rand() % 256;
 	}
 
 	openal_open();
@@ -5369,17 +5692,26 @@ int main(const int argc, const char **argv)
 		else gb_game_buttons_current = (gb_game_buttons_current & 0xF7);
 
 
+#ifdef DEBUG
 		if (debug_wait_loop == 0)
 		{
+#endif
 			gb_run();
-		}
 
 #ifdef DEBUG
+		}
 
 		if (gb_reg_pc.r16 == debug_cycles_address)
 		{
-			debug_cycles_start = 1;
-			debug_wait_pause = 1;
+			if (debug_cycles_occurances == 1)
+			{
+				debug_cycles_start = 1;
+				debug_wait_pause = 1;
+			}
+			else
+			{
+				debug_cycles_occurances--;
+			}
 		}
 
 		if (debug_cycles_start > 0 && debug_wait_pause > 0)
@@ -5546,6 +5878,16 @@ int main(const int argc, const char **argv)
 	}
 
 	openal_close();
+
+#ifdef DEBUG
+	for (int i=0; i<512; i++)
+	{
+		if (debug_inst_list[i] > 0)
+		{
+			printf("%04X: %08X\n", (unsigned int)i, (unsigned int)debug_inst_list[i]);
+		}
+	}
+#endif
 
 	return 1;
 }
