@@ -201,7 +201,6 @@ unsigned long gb_ext_div_cycles = 0;
 unsigned long gb_ext_tima_cycles = 0;
 unsigned long gb_ext_sb_cycles = 0;
 unsigned long gb_ext_dma_addr = 0;
-unsigned long gb_ext_int_delay = 0;
 
 
 
@@ -477,11 +476,6 @@ void gb_initialize()
 	{
 		gb_cart_mbc = 0x01; // mbc1
 	}
-	else if (gb_cart_type == 0x05 ||
-		gb_cart_type == 0x06)
-	{
-		gb_cart_mbc = 0x02; // mbc2
-	}
 	else if (gb_cart_type == 0x0F ||
 		gb_cart_type == 0x10 ||
 		gb_cart_type == 0x11 ||
@@ -589,6 +583,16 @@ unsigned char gb_read(unsigned short addr)
 
 				break;	
 			}
+			case 0x03:
+			{
+				return gb_mem_rom[addr];
+				break;	
+			}
+			case 0x05:
+			{
+				return gb_mem_rom[addr];
+				break;	
+			}
 			default:
 			{
 				return gb_mem_rom[addr];
@@ -608,6 +612,24 @@ unsigned char gb_read(unsigned short addr)
 			case 0x01:
 			{
 				gb_cart_bank_addr = (gb_cart_bank_ram << 19) | (gb_cart_bank_rom << 14) | (addr & 0x3FFF);
+				gb_cart_bank_addr = (gb_cart_bank_addr & gb_cart_mask_rom);
+
+				return gb_mem_rom[gb_cart_bank_addr];		
+
+				break;	
+			}
+			case 0x03:
+			{
+				gb_cart_bank_addr = (gb_cart_bank_rom << 14) | (addr & 0x3FFF);
+				gb_cart_bank_addr = (gb_cart_bank_addr & gb_cart_mask_rom);
+
+				return gb_mem_rom[gb_cart_bank_addr];		
+
+				break;	
+			}
+			case 0x05:
+			{
+				gb_cart_bank_addr = (gb_cart_bank_rom << 14) | (addr & 0x3FFF);
 				gb_cart_bank_addr = (gb_cart_bank_addr & gb_cart_mask_rom);
 
 				return gb_mem_rom[gb_cart_bank_addr];		
@@ -635,6 +657,52 @@ unsigned char gb_read(unsigned short addr)
 				break;
 			}
 			case 0x01:
+			{
+				if (gb_cart_enable_ram > 0)
+				{
+					if (gb_cart_bank_mode == 0x00)
+					{
+						return gb_mem_eram[addr-0xA000];
+					}
+					else
+					{
+						gb_cart_bank_addr = (gb_cart_bank_ram << 13) | (addr & 0x1FFF);
+						gb_cart_bank_addr = (gb_cart_bank_addr & gb_cart_mask_ram);
+
+						return gb_mem_eram[gb_cart_bank_addr];
+					}
+				}
+				else
+				{
+					return 0xFF;
+				}		
+
+				break;	
+			}
+			case 0x03:
+			{
+				if (gb_cart_enable_ram > 0)
+				{
+					if (gb_cart_bank_mode == 0x00)
+					{
+						return gb_mem_eram[addr-0xA000];
+					}
+					else
+					{
+						gb_cart_bank_addr = (gb_cart_bank_ram << 13) | (addr & 0x1FFF);
+						gb_cart_bank_addr = (gb_cart_bank_addr & gb_cart_mask_ram);
+
+						return gb_mem_eram[gb_cart_bank_addr];
+					}
+				}
+				else
+				{
+					return 0xFF;
+				}		
+
+				break;	
+			}
+			case 0x05:
 			{
 				if (gb_cart_enable_ram > 0)
 				{
@@ -863,6 +931,51 @@ void gb_write(unsigned short addr, unsigned char val)
 
 				break;
 			}
+			case 0x03:
+			{
+				if (addr < 0x2000)
+				{
+					if ((val & 0x0F) == 0x0A)
+					{
+						gb_cart_enable_ram = 1;
+					}
+					else
+					{
+						gb_cart_enable_ram = 0;
+					}
+				}
+				else
+				{
+					gb_cart_bank_rom = (unsigned char)(val & 0x7F);
+		
+					if (gb_cart_bank_rom == 0x00)
+					{
+						gb_cart_bank_rom = 0x01;
+					}
+				}
+	
+				break;
+			}
+			case 0x05:
+			{
+				if (addr < 0x2000)
+				{
+					if ((val & 0x0F) == 0x0A)
+					{
+						gb_cart_enable_ram = 1;
+					}
+					else
+					{
+						gb_cart_enable_ram = 0;
+					}
+				}
+				else
+				{
+					gb_cart_bank_rom = (unsigned short)((gb_cart_bank_rom & 0x0100) | (val & 0x00FF));
+				}
+	
+				break;
+			}
 			default:
 			{
 				break;
@@ -879,13 +992,39 @@ void gb_write(unsigned short addr, unsigned char val)
 			}
 			case 0x01:
 			{
-				if (addr < 0x600)
+				if (addr < 0x6000)
 				{
 					gb_cart_bank_ram = (unsigned char)(val & 0x03);
 				}
 				else
 				{
 					gb_cart_bank_mode = (unsigned char)(val & 0x01);
+				}
+
+				break;
+			}
+			case 0x03:
+			{
+				if (addr < 0x6000)
+				{
+					gb_cart_bank_ram = (unsigned char)(val & 0x07);
+				}
+				else
+				{
+					// RTC operations
+				}
+
+				break;
+			}
+			case 0x05:
+			{
+				if (addr < 0x6000)
+				{
+					gb_cart_bank_rom = (unsigned short)((gb_cart_bank_rom & 0x00FF) | ((val & 0x0001) << 8));
+				}
+				else
+				{
+					gb_cart_bank_ram = (unsigned char)(val & 0x0F);
 				}
 
 				break;
@@ -1645,105 +1784,58 @@ void gb_interrupts()
 
 	if (gb_cpu_ime == 0x00)
 	{
-		gb_ext_int_delay = 0;	
-
 		return;
 	}
 
 	if ((gb_io_ie & gb_io_if & 0x01)) // vblank
 	{
-		if (gb_ext_int_delay < 1)
-		{
-			gb_ext_int_delay += 1;
-		}
-		else
-		{
-			gb_ext_int_delay = 0;
+		//printf("VBLANK\n");
 
-			//printf("VBLANK\n");
-
-			gb_io_if = (gb_io_if & 0xFE);
-			gb_def_push_16(gb_reg_pc.r16);
-			gb_reg_pc.r16 = 0x0040;
-			gb_def_cycles(20);
-			gb_cpu_ime = 0;
-		}
+		gb_io_if = (gb_io_if & 0xFE);
+		gb_def_push_16(gb_reg_pc.r16);
+		gb_reg_pc.r16 = 0x0040;
+		gb_def_cycles(20);
+		gb_cpu_ime = 0;
 	}
 	else if ((gb_io_ie & gb_io_if & 0x02)) // lcd/stat
 	{
-		if (gb_ext_int_delay < 1)
-		{
-			gb_ext_int_delay += 1;
-		}
-		else
-		{
-			gb_ext_int_delay = 0;
+		//printf("LCD/STAT %02X\n", (unsigned char)gb_io_stat);
 
-			//printf("LCD/STAT %02X\n", (unsigned char)gb_io_stat);
-
-			gb_io_if = (gb_io_if & 0xFD);
-			gb_def_push_16(gb_reg_pc.r16);
-			gb_reg_pc.r16 = 0x0048;
-			gb_def_cycles(20);
-			gb_cpu_ime = 0;
-		}
+		gb_io_if = (gb_io_if & 0xFD);
+		gb_def_push_16(gb_reg_pc.r16);
+		gb_reg_pc.r16 = 0x0048;
+		gb_def_cycles(20);
+		gb_cpu_ime = 0;
 	}
 	else if ((gb_io_ie & gb_io_if & 0x04)) // timer
 	{
-		if (gb_ext_int_delay < 1)
-		{
-			gb_ext_int_delay += 1;
-		}
-		else
-		{
-			gb_ext_int_delay = 0;
+		//printf("TIMER\n");
 
-			//printf("TIMER\n");
-
-			gb_io_if = (gb_io_if & 0xFB);
-			gb_def_push_16(gb_reg_pc.r16);
-			gb_reg_pc.r16 = 0x0050;
-			gb_def_cycles(20);
-			gb_cpu_ime = 0;
-		}
+		gb_io_if = (gb_io_if & 0xFB);
+		gb_def_push_16(gb_reg_pc.r16);
+		gb_reg_pc.r16 = 0x0050;
+		gb_def_cycles(20);
+		gb_cpu_ime = 0;
 	}
 	else if ((gb_io_ie & gb_io_if & 0x08)) // serial
 	{
-		if (gb_ext_int_delay < 1)
-		{
-			gb_ext_int_delay += 1;
-		}
-		else
-		{
-			gb_ext_int_delay = 0;
+		//printf("SERIAL\n");
 
-			//printf("SERIAL\n");
-
-			gb_io_if = (gb_io_if & 0xF7);
-			gb_def_push_16(gb_reg_pc.r16);
-			gb_reg_pc.r16 = 0x0058;
-			gb_def_cycles(20);
-			gb_cpu_ime = 0;
-		}
+		gb_io_if = (gb_io_if & 0xF7);
+		gb_def_push_16(gb_reg_pc.r16);
+		gb_reg_pc.r16 = 0x0058;
+		gb_def_cycles(20);
+		gb_cpu_ime = 0;
 	}
 	else if ((gb_io_ie & gb_io_if & 0x10)) // joypad
 	{
-		if (gb_ext_int_delay < 1)
-		{
-			gb_ext_int_delay += 1;
-		}
-		else
-		{
-			gb_ext_int_delay = 0;
+		//printf("JOYPAD\n");
 
-			//printf("JOYPAD\n");
-
-			gb_io_if = (gb_io_if & 0xEF);
-			gb_def_push_16(gb_reg_pc.r16);
-			gb_reg_pc.r16 = 0x0060;
-			gb_def_cycles(20);
-			gb_cpu_ime = 0;
-		}
+		gb_io_if = (gb_io_if & 0xEF);
+		gb_def_push_16(gb_reg_pc.r16);
+		gb_reg_pc.r16 = 0x0060;
+		gb_def_cycles(20);
+		gb_cpu_ime = 0;
 	}
 }
 
