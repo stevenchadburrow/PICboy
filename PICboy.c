@@ -45,13 +45,12 @@ ALCdevice *openal_device;
 ALCcontext *openal_context;
 ALuint openal_source;
 ALuint openal_buffer;
-unsigned char openal_data[AUDIO_LEN];
+unsigned short openal_data[AUDIO_LEN];
 unsigned char openal_enable = 1;
 
 // variables for general emulation
-
 unsigned short gb_game_screen_buffer[SCREEN_X*SCREEN_Y];
-unsigned char gb_game_audio_buffer[AUDIO_LEN];
+unsigned short gb_game_audio_buffer[AUDIO_LEN];
 int gb_game_audio_file = 0;
 unsigned int gb_game_audio_read = 0;
 unsigned int gb_game_audio_write = 0;
@@ -68,7 +67,7 @@ void gb_game_wait()
 	gb_game_clock = clock();	
 }
 
-// variables for gameboy emulation
+// variables for gameboy specific emulation
 
 // black, dark grey, light grey, white
 unsigned short gb_master_palette[4] = {
@@ -187,6 +186,22 @@ unsigned long gb_io_wx = 0;
 unsigned long gb_io_boot = 0;
 unsigned long gb_io_ie = 0;
 
+// audio registers
+unsigned long gb_aud_nr10 = 0; // channel 1 sweep
+unsigned long gb_aud_nr11 = 0; // channel 1 length/duty
+unsigned long gb_aud_nr12 = 0; // channel 1 volume/envelope
+unsigned long gb_aud_nr13 = 0; // channel 1 period low
+unsigned long gb_aud_nr14 = 0; // channel 1 period high/control
+unsigned long gb_aud_nr21 = 0; // channel 2 length/duty
+unsigned long gb_aud_nr22 = 0; // channel 2 volume/envelope
+unsigned long gb_aud_nr23 = 0; // channel 2 period low
+unsigned long gb_aud_nr24 = 0; // channel 2 period high/control
+// add more audio here
+unsigned long gb_aud_nr50 = 0; // master volume
+unsigned long gb_aud_nr51 = 0; // sound panning
+unsigned long gb_aud_nr52 = 0; // audio enable
+
+
 // cart registers
 unsigned long gb_cart_type = 0;
 unsigned long gb_cart_mbc = 0;
@@ -201,11 +216,22 @@ unsigned long gb_cart_bank_addr = 0;
 // extra registers
 unsigned long gb_ext_lx = 0;
 unsigned long gb_ext_halt = 0;
-unsigned long gb_ext_draw = 0;
 unsigned long gb_ext_div_cycles = 0;
 unsigned long gb_ext_tima_cycles = 0;
 unsigned long gb_ext_sb_cycles = 0;
 unsigned long gb_ext_dma_addr = 0;
+unsigned long gb_ext_aud_cycles = 0;
+unsigned long gb_ext_aud_ch1_period = 0;
+unsigned long gb_ext_aud_ch1_length = 0;
+unsigned long gb_ext_aud_ch1_volume = 0;
+unsigned long gb_ext_aud_ch1_envelope = 0;
+unsigned long gb_ext_aud_ch1_value = 0;
+unsigned long gb_ext_aud_ch2_period = 0;
+unsigned long gb_ext_aud_ch2_length = 0;
+unsigned long gb_ext_aud_ch2_volume = 0;
+unsigned long gb_ext_aud_ch2_envelope = 0;
+unsigned long gb_ext_aud_ch2_value = 0;
+// add more audio here
 
 
 
@@ -451,6 +477,20 @@ void gb_initialize()
 
 	gb_io_if = 0xE1;
 
+	gb_aud_nr10 = 0x80;
+	gb_aud_nr11 = 0xBF;
+	gb_aud_nr12 = 0xF3;
+	gb_aud_nr13 = 0xFF;
+	gb_aud_nr14 = 0xBF;
+	gb_aud_nr21 = 0x3F;
+	gb_aud_nr22 = 0x00;
+	gb_aud_nr23 = 0xFF;
+	gb_aud_nr24 = 0xBF;
+	// add more audio here
+	gb_aud_nr50 = 0x77;
+	gb_aud_nr51 = 0xF3;
+	gb_aud_nr52 = 0xF1;
+
 	gb_io_lcdc = 0x91;
 	gb_io_stat = 0x85;
 	gb_io_scy = 0x00;
@@ -555,7 +595,6 @@ void gb_initialize()
 
 	gb_ext_lx = 0;
 	gb_ext_halt = 0;
-	gb_ext_draw = 0;
 	gb_ext_div_cycles = 0x00;
 	gb_ext_tima_cycles = 0x00;
 }
@@ -811,6 +850,67 @@ unsigned char gb_read(unsigned short addr)
 			case 0xFF0F: // IF
 			{
 				return (unsigned char)gb_io_if;
+				break;
+			}
+			case 0xFF10: // NR10
+			{
+				return (unsigned char)gb_aud_nr10;
+				break;
+			}
+			case 0xFF11: // NR11
+			{
+				return (unsigned char)(gb_aud_nr11 & 0xC0);
+				break;
+			}
+			case 0xFF12: // NR12
+			{
+				return (unsigned char)gb_aud_nr12;
+				break;
+			}
+			case 0xFF13: // NR13
+			{
+				return 0x00;
+				break;
+			}
+			case 0xFF14: // NR14
+			{
+				return (unsigned char)(gb_aud_nr14 & 0x40);
+				break;
+			}
+			case 0xFF16: // NR21
+			{
+				return (unsigned char)(gb_aud_nr21 & 0xC0);
+				break;
+			}
+			case 0xFF17: // NR22
+			{
+				return (unsigned char)gb_aud_nr22;
+				break;
+			}
+			case 0xFF18: // NR23
+			{
+				return 0x00;
+				break;
+			}
+			case 0xFF19: // NR24
+			{
+				return (unsigned char)(gb_aud_nr24 & 0x40);
+				break;
+			}
+			// add more audio here
+			case 0xFF24: // NR50
+			{
+				return (unsigned char)gb_aud_nr50;
+				break;
+			}
+			case 0xFF25: // NR51
+			{
+				return (unsigned char)gb_aud_nr51;
+				break;
+			}
+			case 0xFF26: // NR52
+			{
+				return (unsigned char)gb_aud_nr52;
 				break;
 			}
 			case 0xFF40: // LCDC
@@ -1112,6 +1212,134 @@ void gb_write(unsigned short addr, unsigned char val)
 				gb_io_if = (unsigned char)val;
 				break;
 			}
+			case 0xFF10: // NR10
+			{
+				gb_aud_nr10 = (unsigned char)val;
+				break;
+			}
+			case 0xFF11: // NR11
+			{
+				gb_aud_nr11 = (unsigned char)val;
+
+				gb_ext_aud_ch1_length = (unsigned long)(gb_aud_nr11 & 0x3F);
+
+				break;
+			}
+			case 0xFF12: // NR12
+			{
+				gb_aud_nr12 = (unsigned char)val;
+
+				gb_ext_aud_ch1_volume = (unsigned long)((gb_aud_nr12 & 0xF0) >> 4);
+
+				gb_ext_aud_ch1_envelope = (unsigned long)(gb_aud_nr12 & 0x07);
+
+				break;
+			}
+			case 0xFF13: // NR13
+			{
+				gb_aud_nr13 = (unsigned char)val;
+
+				gb_ext_aud_ch1_period = (unsigned long)(((gb_aud_nr14 & 0x07) << 8) | (gb_aud_nr13 & 0xFF));
+
+				break;
+			}
+			case 0xFF14: // NR14
+			{
+				gb_aud_nr14 = (unsigned char)val;
+
+				if ((gb_aud_nr14 & 0x80) == 0x80)
+				{
+					gb_aud_nr52 = (unsigned char)(gb_aud_nr52 | 0x01); // enable channel 1
+
+					gb_ext_aud_ch1_period = (unsigned long)(((gb_aud_nr14 & 0x07) << 8) | (gb_aud_nr13 & 0xFF));
+
+					gb_ext_aud_ch1_length = (unsigned long)(gb_aud_nr11 & 0x3F);
+
+					gb_ext_aud_ch1_volume = (unsigned long)((gb_aud_nr12 & 0xF0) >> 4);
+
+					gb_ext_aud_ch1_envelope = (unsigned long)(gb_aud_nr12 & 0x07);
+				}
+
+				break;
+			}
+			case 0xFF16: // NR21
+			{
+				gb_aud_nr21 = (unsigned char)val;
+
+				gb_ext_aud_ch2_length = (unsigned long)(gb_aud_nr21 & 0x3F);
+
+				break;
+			}
+			case 0xFF17: // NR22
+			{
+				gb_aud_nr22 = (unsigned char)val;
+
+				gb_ext_aud_ch2_volume = (unsigned long)((gb_aud_nr22 & 0xF0) >> 4);
+
+				gb_ext_aud_ch2_envelope = (unsigned long)(gb_aud_nr22 & 0x07);
+
+				break;
+			}
+			case 0xFF18: // NR23
+			{
+				gb_aud_nr23 = (unsigned char)val;
+
+				gb_ext_aud_ch2_period = (unsigned long)(((gb_aud_nr24 & 0x07) << 8) | (gb_aud_nr23 & 0xFF));
+
+				break;
+			}
+			case 0xFF19: // NR24
+			{
+				gb_aud_nr24 = (unsigned char)val;
+
+				if ((gb_aud_nr24 & 0x80) == 0x80)
+				{
+					gb_aud_nr52 = (unsigned char)(gb_aud_nr52 | 0x02); // enable channel 2
+
+					gb_ext_aud_ch2_period = (unsigned long)(((gb_aud_nr24 & 0x07) << 8) | (gb_aud_nr23 & 0xFF));
+
+					gb_ext_aud_ch2_length = (unsigned long)(gb_aud_nr21 & 0x3F);
+
+					gb_ext_aud_ch2_volume = (unsigned long)((gb_aud_nr22 & 0xF0) >> 4);
+
+					gb_ext_aud_ch2_envelope = (unsigned long)(gb_aud_nr22 & 0x07);
+				}
+
+				break;
+			}
+			// add more audio here
+			case 0xFF24: // NR50
+			{
+				gb_aud_nr50 = (unsigned char)val;
+				break;
+			}
+			case 0xFF25: // NR51
+			{
+				gb_aud_nr51 = (unsigned char)val;
+				break;
+			}
+			case 0xFF26: // NR52
+			{
+				gb_aud_nr52 = (unsigned char)((gb_aud_nr52 & 0x7F) | (val & 0x80));
+
+				if ((gb_aud_nr52 & 0x80) == 0x00)
+				{
+					gb_aud_nr10 = 0x00;
+					gb_aud_nr11 = 0x00;
+					gb_aud_nr12 = 0x00;
+					gb_aud_nr13 = 0x00;
+					gb_aud_nr14 = 0x00;
+					gb_aud_nr21 = 0x00;
+					gb_aud_nr22 = 0x00;
+					gb_aud_nr23 = 0x00;
+					gb_aud_nr24 = 0x00;
+					// add more audio here
+					gb_aud_nr50 = 0x00;
+					gb_aud_nr51 = 0x00;
+				}
+
+				break;
+			}
 			case 0xFF40: // LCDC
 			{
 				gb_io_lcdc = (unsigned char)val;
@@ -1199,704 +1427,6 @@ void gb_write(unsigned short addr, unsigned char val)
 	else // interrupt enable register
 	{
 		gb_io_ie = (unsigned char)val;
-	}
-}
-
-// draws a single line
-void gb_line()
-{
-	// disabled
-	if ((gb_io_lcdc & 0x80) == 0x00) return;
-
-	unsigned long loc, start, end, tile, left, right, shift, pos, pal, val, color;
-	signed int spr;
-	unsigned short pri_enable, pri_value;
-	
-	unsigned long line = gb_io_ly * 160;
-
-	// background
-	loc = 0x1800 + (((gb_io_ly + gb_io_scy) & 0xF8) << 2);
-
-	if ((gb_io_lcdc & 0x08) == 0x08) loc += 0x0400;
-
-	start = ((gb_io_scx & 0xF8) >> 3);
-	end = start + 21;
-
-	for (unsigned long x=start; x<end; x++)
-	{
-		tile = (gb_mem_vram[loc + (x & 0x1F)] << 4);
-
-		if (tile < 2048 && (gb_io_lcdc & 0x10) == 0x00) tile += 0x1000;
-
-		tile += (((gb_io_ly + gb_io_scy) & 0x07) << 1);
-
-		left = gb_mem_vram[tile];
-		right = (gb_mem_vram[tile+1] << 1);
-		
-		for (signed long i=7; i>=0; i--)
-		{
-			shift = (x*8+i) - (gb_io_scx);
-			
-			if ((shift & 0x00FF) < 160)
-			{
-				pos = line + shift;
-				pal = ((((left & 0x01)) | ((right & 0x02))) << 1);
-				val = ((gb_io_bgp & (0x03 << pal)) >> pal);
-
-				// pre-palette
-				gb_game_screen_buffer[pos] = val;
-			}
-
-			left = (left >> 1);
-			right = (right >> 1);
-		}
-	}
-
-	// window
-	if ((gb_io_lcdc & 0x20) == 0x20)
-	{
-		if (gb_io_ly >= gb_io_wy && gb_io_ly < (gb_io_wy + 144))
-		{
-			loc = 0x1800 + (((gb_io_ly - gb_io_wy) & 0xF8) << 2);
-
-			if ((gb_io_lcdc & 0x40) == 0x40) loc += 0x0400;
-
-			start = 0;
-			end = 21;
-
-			for (unsigned long x=start; x<end; x++)
-			{
-				tile = (gb_mem_vram[loc + (x & 0x1F)] << 4);
-
-				if (tile < 2048 && (gb_io_lcdc & 0x10) == 0x00) tile += 0x1000;
-
-				tile += (((gb_io_ly - gb_io_wy) & 0x07) << 1);
-
-				left = gb_mem_vram[tile];
-				right = (gb_mem_vram[tile+1] << 1);
-				
-				for (signed int i=7; i>=0; i--)
-				{
-					shift = (x*8+i) + (gb_io_wx-7);
-					
-					if ((shift & 0x00FF) < 160)
-					{
-						pos = line + shift;
-						pal = ((((left & 0x01)) | ((right & 0x02))) << 1);
-						val = ((gb_io_bgp & (0x03 << pal)) >> pal);
-						
-						// pre-palette
-						gb_game_screen_buffer[pos] = val;
-					}
-
-					left = (left >> 1);
-					right = (right >> 1);
-				}
-			}
-		}
-	}
-
-	// objects
-	if ((gb_io_lcdc & 0x02) == 0x02)
-	{
-		if ((gb_io_lcdc & 0x04) == 0x00) // 8x8 objects
-		{
-			for (signed int i=156; i>=0; i-=4)
-			{
-				spr = (signed int)(gb_io_ly - gb_mem_oam[i] + 16);
-				
-				if (spr >= 0 && spr < 8)
-				{
-					if ((gb_mem_oam[i+3] & 0x80) == 0x80)
-					{
-						pri_enable = 1;
-						pri_value = (unsigned short)(gb_io_bgp & 0x03);
-					}
-					else
-					{
-						pri_enable = 0;
-					}
-
-					tile = (gb_mem_oam[i+2] << 4);
-
-					if ((gb_mem_oam[i+3] & 0x10) == 0x00) loc = gb_io_obp0;
-					else loc = gb_io_obp1;
-
-					switch ((gb_mem_oam[i+3] & 0x60))
-					{
-						case 0x00: // no flips
-						{
-							tile += (spr << 1);
-
-							left = gb_mem_vram[tile];
-							right = (gb_mem_vram[tile+1] << 1);
-			
-							for (signed int j=7; j>=0; j--)
-							{
-								shift = gb_mem_oam[i+1] + j - 8;
-								
-								if ((shift & 0x00FF) < 160)
-								{
-									pos = line + shift;
-									pal = ((((left & 0x01)) | ((right & 0x02))) << 1);
-
-									if (pal != 0x00)
-									{
-										val = ((loc & (0x03 << pal)) >> pal);
-										
-										if (pri_enable == 0 || gb_game_screen_buffer[pos] == pri_value)
-										{
-											// pre-palette
-											gb_game_screen_buffer[pos] = val;
-										}
-									}
-								}
-
-								left = (left >> 1);
-								right = (right >> 1);
-							}
-							
-							break;
-						}
-						case 0x20: // X-flip
-						{
-							tile += (spr << 1);
-
-							left = gb_mem_vram[tile];
-							right = (gb_mem_vram[tile+1] << 1);
-			
-							for (signed int j=7; j>=0; j--)
-							{
-								shift = gb_mem_oam[i+1] - j - 1;
-							
-								if ((shift & 0x00FF) < 160)
-								{
-									pos = line + shift;
-									pal = ((((left & 0x01)) | ((right & 0x02))) << 1);
-								
-									if (pal != 0x00)
-									{
-										val = ((loc & (0x03 << pal)) >> pal);
-										
-										if (pri_enable == 0 || gb_game_screen_buffer[pos] == pri_value)
-										{
-											// pre-palette
-											gb_game_screen_buffer[pos] = val;
-										}
-									}
-								}
-
-								left = (left >> 1);
-								right = (right >> 1);
-							}
-
-							break;
-						}
-						case 0x40: // Y-flip
-						{
-							tile += ((8-spr) << 1);
-
-							left = gb_mem_vram[tile];
-							right = (gb_mem_vram[tile+1] << 1);
-			
-							for (signed int j=7; j>=0; j--)
-							{
-								shift = gb_mem_oam[i+1] + j - 8;
-								
-								if ((shift & 0x00FF) < 160)
-								{
-									pos = line + shift;
-									pal = ((((left & 0x01)) | ((right & 0x02))) << 1);
-
-									if (pal != 0x00)
-									{
-										val = ((loc & (0x03 << pal)) >> pal);
-									
-										if (pri_enable == 0 || gb_game_screen_buffer[pos] == pri_value)
-										{
-											// pre-palette
-											gb_game_screen_buffer[pos] = val;
-										}
-									}
-								}
-
-								left = (left >> 1);
-								right = (right >> 1);
-							}
-
-							break;
-						}
-						case 0x60: // X-flip and Y-flip
-						{
-							tile += ((8-spr) << 1);
-
-							left = gb_mem_vram[tile];
-							right = (gb_mem_vram[tile+1] << 1);
-			
-							for (signed int j=7; j>=0; j--)
-							{
-								shift = gb_mem_oam[i+1] - j - 1;
-							
-								if ((shift & 0x00FF) < 160)
-								{
-									pos = line + shift;
-									pal = ((((left & 0x01)) | ((right & 0x02))) << 1);
-
-									if (pal != 0x00)
-									{
-										val = ((loc & (0x03 << pal)) >> pal);
-										
-										if (pri_enable == 0 || gb_game_screen_buffer[pos] == pri_value)
-										{
-											// pre-palette
-											gb_game_screen_buffer[pos] = val;
-										}
-									}
-								}
-
-								left = (left >> 1);
-								right = (right >> 1);
-							}
-
-							break;
-						}
-					}
-				}
-			}					
-		}
-		else // 8x16 objects
-		{
-			for (signed int i=156; i>=0; i-=4)
-			{
-				spr = (signed int)(gb_io_ly - gb_mem_oam[i] + 16);
-
-				if (spr >= 0 && spr < 16)
-				{
-					if ((gb_mem_oam[i+3] & 0x80) == 0x80)
-					{
-						pri_enable = 1;
-						pri_value = (unsigned short)(gb_io_bgp & 0x03);
-					}
-					else
-					{
-						pri_enable = 0;
-					}
-
-					tile = (gb_mem_oam[i+2] << 4);
-
-					if ((gb_mem_oam[i+3] & 0x10) == 0x00) loc = gb_io_obp0;
-					else loc = gb_io_obp1;
-
-					switch ((gb_mem_oam[i+3] & 0x60))
-					{
-						case 0x00: // no flips
-						{
-							tile += (spr << 1);
-
-							left = gb_mem_vram[tile];
-							right = (gb_mem_vram[tile+1] << 1);
-			
-							for (signed int j=7; j>=0; j--)
-							{
-								shift = gb_mem_oam[i+1] + j - 8;
-								
-								if ((shift & 0x00FF) < 160)
-								{
-									pos = line + shift;
-									pal = ((((left & 0x01)) | ((right & 0x02))) << 1);
-
-									if (pal != 0x00)
-									{
-										val = ((loc & (0x03 << pal)) >> pal);
-										
-										if (pri_enable == 0 || gb_game_screen_buffer[pos] == pri_value)
-										{
-											// pre-palette
-											gb_game_screen_buffer[pos] = val;
-										}
-									}
-								}
-
-								left = (left >> 1);
-								right = (right >> 1);
-							}
-							
-							break;
-						}
-						case 0x20: // X-flip
-						{
-							tile += (spr << 1);
-
-							left = gb_mem_vram[tile];
-							right = (gb_mem_vram[tile+1] << 1);
-			
-							for (signed int j=7; j>=0; j--)
-							{
-								shift = gb_mem_oam[i+1] - j - 1;
-							
-								if ((shift & 0x00FF) < 160)
-								{
-									pos = line + shift;
-									pal = ((((left & 0x01)) | ((right & 0x02))) << 1);
-								
-									if (pal != 0x00)
-									{
-										val = ((loc & (0x03 << pal)) >> pal);
-										
-										if (pri_enable == 0 || gb_game_screen_buffer[pos] == pri_value)
-										{
-											// pre-palette
-											gb_game_screen_buffer[pos] = val;
-										}
-									}
-								}
-
-								left = (left >> 1);
-								right = (right >> 1);
-							}
-
-							break;
-						}
-						case 0x40: // Y-flip
-						{
-							tile += ((16-spr) << 1);
-
-							left = gb_mem_vram[tile];
-							right = (gb_mem_vram[tile+1] << 1);
-			
-							for (signed int j=7; j>=0; j--)
-							{
-								shift = gb_mem_oam[i+1] + j - 8;
-								
-								if ((shift & 0x00FF) < 160)
-								{
-									pos = line + shift;
-									pal = ((((left & 0x01)) | ((right & 0x02))) << 1);
-
-									if (pal != 0x00)
-									{
-										val = ((loc & (0x03 << pal)) >> pal);
-										
-										if (pri_enable == 0 || gb_game_screen_buffer[pos] == pri_value)
-										{
-											// pre-palette
-											gb_game_screen_buffer[pos] = val;
-										}
-									}
-								}
-
-								left = (left >> 1);
-								right = (right >> 1);
-							}
-
-							break;
-						}
-						case 0x60: // X-flip and Y-flip
-						{
-							tile += ((16-spr) << 1);
-
-							left = gb_mem_vram[tile];
-							right = (gb_mem_vram[tile+1] << 1);
-			
-							for (signed int j=7; j>=0; j--)
-							{
-								shift = gb_mem_oam[i+1] - j - 1;
-							
-								if ((shift & 0x00FF) < 160)
-								{
-									pos = line + shift;
-									pal = ((((left & 0x01)) | ((right & 0x02))) << 1);
-
-									if (pal != 0x00)
-									{
-										val = ((loc & (0x03 << pal)) >> pal);
-										
-										if (pri_enable == 0 || gb_game_screen_buffer[pos] == pri_value)
-										{
-											// pre-palette
-											gb_game_screen_buffer[pos] = val;
-										}
-									}
-								}
-
-								left = (left >> 1);
-								right = (right >> 1);
-							}
-
-							break;
-						}
-					}
-				}
-			}		
-		}
-	}
-
-	// replace with palette	
-	for (int i=0; i<160; i++)
-	{
-		gb_game_screen_buffer[line + i] = gb_master_palette[gb_game_screen_buffer[line + i]];
-	}
-}
-
-// use after gb_run();
-void gb_updates()
-{
-	if ((gb_io_sc & 0x81) == 0x81) // serial cycles
-	{
-		gb_ext_sb_cycles += gb_cpu_cycles;
-		
-		if (gb_ext_sb_cycles >= 512)
-		{
-			gb_ext_sb_cycles = 0;
-			
-			gb_io_if |= 0x08; // interrupt
-
-			gb_io_sc &= 0x80;
-		}
-	}
-
-	gb_ext_div_cycles += gb_cpu_cycles;
-	gb_ext_tima_cycles += gb_cpu_cycles;
-
-	gb_ext_lx += gb_cpu_cycles;
-	
-	gb_cpu_cycles = 0;
-
-	if (gb_ext_lx >= 456) // horizontal max
-	{
-		gb_ext_lx -= 456;
-		gb_io_ly += 1;
-
-		if (gb_io_ly == 144) // vblank
-		{
-			gb_io_if = (gb_io_if | 0x01);
-			gb_ext_draw = 1;
-		}
-		else if (gb_io_ly >= 154) // vertical max
-		{
-			gb_io_ly -= 154;
-		}
-	}	
-
-	if (gb_io_ly >= 144) // mode 1
-	{
-		if ((gb_io_stat & 0x03) != 0x01 && (gb_io_stat & 0x10) == 0x10)
-		{
-			if ((gb_io_lcdc & 0x80) == 0x80) gb_io_if = (gb_io_if | 0x02); // interrupt
-		}
-
-		gb_io_stat = ((gb_io_stat & 0xFC) | 0x01);
-	}
-	else
-	{
-		if (gb_ext_lx < 80) // mode 2
-		{
-			if ((gb_io_stat & 0x03) != 0x02 && (gb_io_stat & 0x20) == 0x20)
-			{
-				if ((gb_io_lcdc & 0x80) == 0x80) gb_io_if = (gb_io_if | 0x02); // interrupt
-			}
-
-			gb_io_stat = ((gb_io_stat & 0xFC) | 0x02);
-		}
-		else if (gb_ext_lx < 252) // mode 3
-		{
-			gb_io_stat = ((gb_io_stat & 0xFC) | 0x03);
-		}
-		else // mode 0
-		{
-			if ((gb_io_stat & 0x03) != 0x00)
-			{
-				if ((gb_io_stat & 0x08) == 0x08)
-				{
-					if ((gb_io_lcdc & 0x80) == 0x80) gb_io_if = (gb_io_if | 0x02); // interrupt
-				}
-
-				gb_line();
-			}
-
-			gb_io_stat = ((gb_io_stat & 0xFC) | 0x00);
-		}
-	}
-
-	if ((gb_io_lcdc & 0x80) == 0x00) // keep at 0 when off
-	{
-		gb_ext_lx = 0;
-		gb_io_ly = 0;
-
-		gb_io_stat = ((gb_io_stat & 0xFC));
-	}
-
-	if (gb_io_ly == gb_io_lyc) // compare
-	{
-		if ((gb_io_stat & 0x40) == 0x40)
-		{
-			if ((gb_io_lcdc & 0x80) == 0x80) gb_io_if = (gb_io_if | 0x02); // interrupt
-		}
-
-		gb_io_stat = ((gb_io_stat & 0xFB) | 0x04);
-	}
-	else
-	{
-		gb_io_stat = ((gb_io_stat & 0xFB) | 0x00);
-	}
-
-	if (gb_ext_div_cycles >= 256) // div increments
-	{	
-		gb_ext_div_cycles -= 256;
-		gb_io_div = (unsigned char)(gb_io_div + 1);
-	}
-
-	if ((gb_io_tac & 0x04) == 0x04) // tima increments
-	{
-		switch ((gb_io_tac & 0x03))
-		{
-			case 0x00:
-			{
-				if (gb_ext_tima_cycles >= 1024)
-				{
-					gb_ext_tima_cycles -= 1024;
-					gb_io_tima = (unsigned char)(gb_io_tima + 1);
-
-					if (gb_io_tima == 0x00) // overflow
-					{
-						gb_io_tima = (unsigned char)gb_io_tma;
-
-						gb_io_if = (gb_io_if | 0x04);
-					}
-				}
-				break;
-			}
-			case 0x01:
-			{
-				if (gb_ext_tima_cycles >= 16)
-				{
-					gb_ext_tima_cycles -= 16;
-					gb_io_tima = (unsigned char)(gb_io_tima + 1);
-		
-					if (gb_io_tima == 0x00) // overflow
-					{
-						gb_io_tima = (unsigned char)gb_io_tma;
-
-						gb_io_if = (gb_io_if | 0x04);
-					}
-				}
-				break;
-			}
-			case 0x02:
-			{
-				if (gb_ext_tima_cycles >= 64)
-				{
-					gb_ext_tima_cycles -= 64;
-					gb_io_tima = (unsigned char)(gb_io_tima + 1);
-
-					if (gb_io_tima == 0x00) // overflow
-					{
-						gb_io_tima = (unsigned char)gb_io_tma;
-
-						gb_io_if = (gb_io_if | 0x04);
-					}
-				}
-				break;
-			}
-			case 0x03:
-			{
-				if (gb_ext_tima_cycles >= 256)
-				{
-					gb_ext_tima_cycles -= 256;
-					gb_io_tima = (unsigned char)(gb_io_tima + 1);
-
-					if (gb_io_tima == 0x00) // overflow
-					{
-						gb_io_tima = (unsigned char)gb_io_tma;
-
-						gb_io_if = (gb_io_if | 0x04);
-					}
-				}
-				break;
-			}
-		}
-	}
-
-	if ((gb_io_joyp & 0x30) == 0x10) // buttons
-	{
-		if (((gb_game_buttons_previous ^ gb_game_buttons_current) & 0x0F) != 0x00 &&
-			((gb_game_buttons_previous ^ gb_game_buttons_current) & gb_game_buttons_current & 0x0F) == 0x00)
-		{
-			gb_io_if = (gb_io_if | 0x10); // interrupt
-		}
-	} 
-	else if ((gb_io_joyp & 0x30) == 0x20) // d-pad
-	{
-		if (((gb_game_buttons_previous ^ gb_game_buttons_current) & 0xF0) != 0x00 &&
-			((gb_game_buttons_previous ^ gb_game_buttons_current) & gb_game_buttons_current & 0xF0) == 0x00)
-		{
-			gb_io_if = (gb_io_if | 0x10); // interrupt
-		}
-	}
-}
-
-// use after gb_run();
-void gb_interrupts()
-{
-	if ((gb_io_ie & gb_io_if & 0x1F)) // any
-	{
-		gb_cpu_halt = 0;
-	}
-
-	if (gb_cpu_ime == 0x00)
-	{
-		return;
-	}
-
-	if ((gb_io_ie & gb_io_if & 0x01)) // vblank
-	{
-		//printf("VBLANK\n");
-
-		gb_io_if = (gb_io_if & 0xFE);
-		gb_def_push_16(gb_reg_pc.r16);
-		gb_reg_pc.r16 = 0x0040;
-		gb_def_cycles(20);
-		gb_cpu_ime = 0;
-	}
-	else if ((gb_io_ie & gb_io_if & 0x02)) // lcd/stat
-	{
-		//printf("LCD/STAT %02X\n", (unsigned char)gb_io_stat);
-
-		gb_io_if = (gb_io_if & 0xFD);
-		gb_def_push_16(gb_reg_pc.r16);
-		gb_reg_pc.r16 = 0x0048;
-		gb_def_cycles(20);
-		gb_cpu_ime = 0;
-	}
-	else if ((gb_io_ie & gb_io_if & 0x04)) // timer
-	{
-		//printf("TIMER\n");
-
-		gb_io_if = (gb_io_if & 0xFB);
-		gb_def_push_16(gb_reg_pc.r16);
-		gb_reg_pc.r16 = 0x0050;
-		gb_def_cycles(20);
-		gb_cpu_ime = 0;
-	}
-	else if ((gb_io_ie & gb_io_if & 0x08)) // serial
-	{
-		//printf("SERIAL\n");
-
-		gb_io_if = (gb_io_if & 0xF7);
-		gb_def_push_16(gb_reg_pc.r16);
-		gb_reg_pc.r16 = 0x0058;
-		gb_def_cycles(20);
-		gb_cpu_ime = 0;
-	}
-	else if ((gb_io_ie & gb_io_if & 0x10)) // joypad
-	{
-		//printf("JOYPAD\n");
-
-		gb_io_if = (gb_io_if & 0xEF);
-		gb_def_push_16(gb_reg_pc.r16);
-		gb_reg_pc.r16 = 0x0060;
-		gb_def_cycles(20);
-		gb_cpu_ime = 0;
 	}
 }
 
@@ -4309,17 +3839,6 @@ void gb_run()
 		case 0xE8:
 		{
 			// ADD SP,N
-/*
-			gb_def_read_8(gb_reg_pc.r16, gb_cpu_operand.r8.low);
-			gb_def_step(gb_reg_pc.r16, 1);
-			gb_cpu_result = (unsigned short)((unsigned short)gb_reg_sp.r16 + (signed char)gb_cpu_operand.r8.low);
-			gb_reg_af.r8.f &= 0xD0;
-			gb_reg_af.r8.f |= (((gb_cpu_result ^ gb_reg_sp.r8.low ^ gb_cpu_operand.r8.low) & 0x10) ? 0x20 : 0x00);
-			gb_reg_sp.r16 = (unsigned short)gb_cpu_result;
-			gb_def_flag_z_clr();
-			gb_def_flag_n_clr();
-			gb_def_flag_c_calc_16();
-*/
 			gb_def_read_8(gb_reg_pc.r16, gb_cpu_operand.r8.low);
 			gb_def_step(gb_reg_pc.r16, 1);
 			gb_reg_af.r8.f = 0x00;
@@ -4485,17 +4004,6 @@ void gb_run()
 		case 0xF8:
 		{
 			// LD HL,SP+N
-/*		
-			gb_def_read_8(gb_reg_pc.r16, gb_cpu_operand.r8.low);
-			gb_def_step(gb_reg_pc.r16, 1);
-			gb_cpu_result = (unsigned long)((unsigned short)gb_reg_sp.r16 + (signed char)gb_cpu_operand.r8.low);
-			gb_reg_af.r8.f &= 0xD0;
-			gb_reg_af.r8.f |= (((gb_cpu_result ^ gb_reg_sp.r8.low ^ gb_cpu_operand.r8.low) & 0x10) ? 0x20 : 0x00);
-			gb_reg_hl.r16 = (unsigned short)gb_cpu_result;
-			gb_def_flag_z_clr();
-			gb_def_flag_n_clr();
-			gb_def_flag_c_calc_8();
-*/
 			gb_def_read_8(gb_reg_pc.r16, gb_cpu_operand.r8.low);
 			gb_def_step(gb_reg_pc.r16, 1);
 			gb_reg_hl.r16 = (unsigned short)(gb_reg_sp.r16 + (signed char)gb_cpu_operand.r8.low);
@@ -5595,6 +5103,851 @@ void gb_run()
 	}
 }
 
+// draws a single line
+void gb_line()
+{
+	// disabled
+	if ((gb_io_lcdc & 0x80) == 0x00) return;
+
+	unsigned long loc, start, end, tile, left, right, shift, pos, pal, val, color;
+	signed int spr;
+	unsigned short pri_enable, pri_value;
+	
+	unsigned long line = gb_io_ly * 160;
+
+	// background
+	loc = 0x1800 + (((gb_io_ly + gb_io_scy) & 0xF8) << 2);
+
+	if ((gb_io_lcdc & 0x08) == 0x08) loc += 0x0400;
+
+	start = ((gb_io_scx & 0xF8) >> 3);
+	end = start + 21;
+
+	for (unsigned long x=start; x<end; x++)
+	{
+		tile = (gb_mem_vram[loc + (x & 0x1F)] << 4);
+
+		if (tile < 2048 && (gb_io_lcdc & 0x10) == 0x00) tile += 0x1000;
+
+		tile += (((gb_io_ly + gb_io_scy) & 0x07) << 1);
+
+		left = gb_mem_vram[tile];
+		right = (gb_mem_vram[tile+1] << 1);
+		
+		for (signed long i=7; i>=0; i--)
+		{
+			shift = (x*8+i) - (gb_io_scx);
+			
+			if ((shift & 0x00FF) < 160)
+			{
+				pos = line + shift;
+				pal = ((((left & 0x01)) | ((right & 0x02))) << 1);
+				val = ((gb_io_bgp & (0x03 << pal)) >> pal);
+
+				// pre-palette
+				gb_game_screen_buffer[pos] = val;
+			}
+
+			left = (left >> 1);
+			right = (right >> 1);
+		}
+	}
+
+	// window
+	if ((gb_io_lcdc & 0x20) == 0x20)
+	{
+		if (gb_io_ly >= gb_io_wy && gb_io_ly < (gb_io_wy + 144))
+		{
+			loc = 0x1800 + (((gb_io_ly - gb_io_wy) & 0xF8) << 2);
+
+			if ((gb_io_lcdc & 0x40) == 0x40) loc += 0x0400;
+
+			start = 0;
+			end = 21;
+
+			for (unsigned long x=start; x<end; x++)
+			{
+				tile = (gb_mem_vram[loc + (x & 0x1F)] << 4);
+
+				if (tile < 2048 && (gb_io_lcdc & 0x10) == 0x00) tile += 0x1000;
+
+				tile += (((gb_io_ly - gb_io_wy) & 0x07) << 1);
+
+				left = gb_mem_vram[tile];
+				right = (gb_mem_vram[tile+1] << 1);
+				
+				for (signed int i=7; i>=0; i--)
+				{
+					shift = (x*8+i) + (gb_io_wx-7);
+					
+					if ((shift & 0x00FF) < 160)
+					{
+						pos = line + shift;
+						pal = ((((left & 0x01)) | ((right & 0x02))) << 1);
+						val = ((gb_io_bgp & (0x03 << pal)) >> pal);
+						
+						// pre-palette
+						gb_game_screen_buffer[pos] = val;
+					}
+
+					left = (left >> 1);
+					right = (right >> 1);
+				}
+			}
+		}
+	}
+
+	// objects
+	if ((gb_io_lcdc & 0x02) == 0x02)
+	{
+		if ((gb_io_lcdc & 0x04) == 0x00) // 8x8 objects
+		{
+			for (signed int i=156; i>=0; i-=4)
+			{
+				spr = (signed int)(gb_io_ly - gb_mem_oam[i] + 16);
+				
+				if (spr >= 0 && spr < 8)
+				{
+					if ((gb_mem_oam[i+3] & 0x80) == 0x80)
+					{
+						pri_enable = 1;
+						pri_value = (unsigned short)(gb_io_bgp & 0x03);
+					}
+					else
+					{
+						pri_enable = 0;
+					}
+
+					tile = (gb_mem_oam[i+2] << 4);
+
+					if ((gb_mem_oam[i+3] & 0x10) == 0x00) loc = gb_io_obp0;
+					else loc = gb_io_obp1;
+
+					switch ((gb_mem_oam[i+3] & 0x60))
+					{
+						case 0x00: // no flips
+						{
+							tile += (spr << 1);
+
+							left = gb_mem_vram[tile];
+							right = (gb_mem_vram[tile+1] << 1);
+			
+							for (signed int j=7; j>=0; j--)
+							{
+								shift = gb_mem_oam[i+1] + j - 8;
+								
+								if ((shift & 0x00FF) < 160)
+								{
+									pos = line + shift;
+									pal = ((((left & 0x01)) | ((right & 0x02))) << 1);
+
+									if (pal != 0x00)
+									{
+										val = ((loc & (0x03 << pal)) >> pal);
+										
+										if (pri_enable == 0 || gb_game_screen_buffer[pos] == pri_value)
+										{
+											// pre-palette
+											gb_game_screen_buffer[pos] = val;
+										}
+									}
+								}
+
+								left = (left >> 1);
+								right = (right >> 1);
+							}
+							
+							break;
+						}
+						case 0x20: // X-flip
+						{
+							tile += (spr << 1);
+
+							left = gb_mem_vram[tile];
+							right = (gb_mem_vram[tile+1] << 1);
+			
+							for (signed int j=7; j>=0; j--)
+							{
+								shift = gb_mem_oam[i+1] - j - 1;
+							
+								if ((shift & 0x00FF) < 160)
+								{
+									pos = line + shift;
+									pal = ((((left & 0x01)) | ((right & 0x02))) << 1);
+								
+									if (pal != 0x00)
+									{
+										val = ((loc & (0x03 << pal)) >> pal);
+										
+										if (pri_enable == 0 || gb_game_screen_buffer[pos] == pri_value)
+										{
+											// pre-palette
+											gb_game_screen_buffer[pos] = val;
+										}
+									}
+								}
+
+								left = (left >> 1);
+								right = (right >> 1);
+							}
+
+							break;
+						}
+						case 0x40: // Y-flip
+						{
+							tile += ((8-spr) << 1);
+
+							left = gb_mem_vram[tile];
+							right = (gb_mem_vram[tile+1] << 1);
+			
+							for (signed int j=7; j>=0; j--)
+							{
+								shift = gb_mem_oam[i+1] + j - 8;
+								
+								if ((shift & 0x00FF) < 160)
+								{
+									pos = line + shift;
+									pal = ((((left & 0x01)) | ((right & 0x02))) << 1);
+
+									if (pal != 0x00)
+									{
+										val = ((loc & (0x03 << pal)) >> pal);
+									
+										if (pri_enable == 0 || gb_game_screen_buffer[pos] == pri_value)
+										{
+											// pre-palette
+											gb_game_screen_buffer[pos] = val;
+										}
+									}
+								}
+
+								left = (left >> 1);
+								right = (right >> 1);
+							}
+
+							break;
+						}
+						case 0x60: // X-flip and Y-flip
+						{
+							tile += ((8-spr) << 1);
+
+							left = gb_mem_vram[tile];
+							right = (gb_mem_vram[tile+1] << 1);
+			
+							for (signed int j=7; j>=0; j--)
+							{
+								shift = gb_mem_oam[i+1] - j - 1;
+							
+								if ((shift & 0x00FF) < 160)
+								{
+									pos = line + shift;
+									pal = ((((left & 0x01)) | ((right & 0x02))) << 1);
+
+									if (pal != 0x00)
+									{
+										val = ((loc & (0x03 << pal)) >> pal);
+										
+										if (pri_enable == 0 || gb_game_screen_buffer[pos] == pri_value)
+										{
+											// pre-palette
+											gb_game_screen_buffer[pos] = val;
+										}
+									}
+								}
+
+								left = (left >> 1);
+								right = (right >> 1);
+							}
+
+							break;
+						}
+					}
+				}
+			}					
+		}
+		else // 8x16 objects
+		{
+			for (signed int i=156; i>=0; i-=4)
+			{
+				spr = (signed int)(gb_io_ly - gb_mem_oam[i] + 16);
+
+				if (spr >= 0 && spr < 16)
+				{
+					if ((gb_mem_oam[i+3] & 0x80) == 0x80)
+					{
+						pri_enable = 1;
+						pri_value = (unsigned short)(gb_io_bgp & 0x03);
+					}
+					else
+					{
+						pri_enable = 0;
+					}
+
+					tile = (gb_mem_oam[i+2] << 4);
+
+					if ((gb_mem_oam[i+3] & 0x10) == 0x00) loc = gb_io_obp0;
+					else loc = gb_io_obp1;
+
+					switch ((gb_mem_oam[i+3] & 0x60))
+					{
+						case 0x00: // no flips
+						{
+							tile += (spr << 1);
+
+							left = gb_mem_vram[tile];
+							right = (gb_mem_vram[tile+1] << 1);
+			
+							for (signed int j=7; j>=0; j--)
+							{
+								shift = gb_mem_oam[i+1] + j - 8;
+								
+								if ((shift & 0x00FF) < 160)
+								{
+									pos = line + shift;
+									pal = ((((left & 0x01)) | ((right & 0x02))) << 1);
+
+									if (pal != 0x00)
+									{
+										val = ((loc & (0x03 << pal)) >> pal);
+										
+										if (pri_enable == 0 || gb_game_screen_buffer[pos] == pri_value)
+										{
+											// pre-palette
+											gb_game_screen_buffer[pos] = val;
+										}
+									}
+								}
+
+								left = (left >> 1);
+								right = (right >> 1);
+							}
+							
+							break;
+						}
+						case 0x20: // X-flip
+						{
+							tile += (spr << 1);
+
+							left = gb_mem_vram[tile];
+							right = (gb_mem_vram[tile+1] << 1);
+			
+							for (signed int j=7; j>=0; j--)
+							{
+								shift = gb_mem_oam[i+1] - j - 1;
+							
+								if ((shift & 0x00FF) < 160)
+								{
+									pos = line + shift;
+									pal = ((((left & 0x01)) | ((right & 0x02))) << 1);
+								
+									if (pal != 0x00)
+									{
+										val = ((loc & (0x03 << pal)) >> pal);
+										
+										if (pri_enable == 0 || gb_game_screen_buffer[pos] == pri_value)
+										{
+											// pre-palette
+											gb_game_screen_buffer[pos] = val;
+										}
+									}
+								}
+
+								left = (left >> 1);
+								right = (right >> 1);
+							}
+
+							break;
+						}
+						case 0x40: // Y-flip
+						{
+							tile += ((16-spr) << 1);
+
+							left = gb_mem_vram[tile];
+							right = (gb_mem_vram[tile+1] << 1);
+			
+							for (signed int j=7; j>=0; j--)
+							{
+								shift = gb_mem_oam[i+1] + j - 8;
+								
+								if ((shift & 0x00FF) < 160)
+								{
+									pos = line + shift;
+									pal = ((((left & 0x01)) | ((right & 0x02))) << 1);
+
+									if (pal != 0x00)
+									{
+										val = ((loc & (0x03 << pal)) >> pal);
+										
+										if (pri_enable == 0 || gb_game_screen_buffer[pos] == pri_value)
+										{
+											// pre-palette
+											gb_game_screen_buffer[pos] = val;
+										}
+									}
+								}
+
+								left = (left >> 1);
+								right = (right >> 1);
+							}
+
+							break;
+						}
+						case 0x60: // X-flip and Y-flip
+						{
+							tile += ((16-spr) << 1);
+
+							left = gb_mem_vram[tile];
+							right = (gb_mem_vram[tile+1] << 1);
+			
+							for (signed int j=7; j>=0; j--)
+							{
+								shift = gb_mem_oam[i+1] - j - 1;
+							
+								if ((shift & 0x00FF) < 160)
+								{
+									pos = line + shift;
+									pal = ((((left & 0x01)) | ((right & 0x02))) << 1);
+
+									if (pal != 0x00)
+									{
+										val = ((loc & (0x03 << pal)) >> pal);
+										
+										if (pri_enable == 0 || gb_game_screen_buffer[pos] == pri_value)
+										{
+											// pre-palette
+											gb_game_screen_buffer[pos] = val;
+										}
+									}
+								}
+
+								left = (left >> 1);
+								right = (right >> 1);
+							}
+
+							break;
+						}
+					}
+				}
+			}		
+		}
+	}
+
+	// replace with palette	
+	for (int i=0; i<160; i++)
+	{
+		gb_game_screen_buffer[line + i] = gb_master_palette[gb_game_screen_buffer[line + i]];
+	}
+}
+
+
+void gb_audio()
+{
+	if ((gb_aud_nr52 & 0x80) == 0x00) return;
+
+	// channel 1
+	if ((gb_aud_nr52 & 0x01) == 0x01)
+	{
+		// period/length
+		gb_ext_aud_ch1_period += 8; 
+		
+		if (gb_ext_aud_ch1_period >= 2048)
+		{
+			gb_ext_aud_ch1_period -= 2048;
+
+			gb_ext_aud_ch1_period += (unsigned long)(((gb_aud_nr14 & 0x07) << 8) | (gb_aud_nr13 & 0xFF));
+			
+			gb_ext_aud_ch1_value = (unsigned short)((gb_ext_aud_ch1_value ^ 0x01FF) & 0x01FF); // max of 0x01FF for each channel
+
+			if ((gb_aud_nr13 & 0x40) == 0x40)
+			{
+				gb_ext_aud_ch1_length += 1;
+
+				if (gb_ext_aud_ch1_length >= 64)
+				{
+					gb_aud_nr52 = (unsigned char)(gb_aud_nr52 & 0xFE); // disable channel 1
+				}
+			}
+		}
+
+		// volume/envelope
+		if ((gb_aud_nr12 & 0x07) != 0x00)
+		{
+			gb_ext_aud_ch1_envelope += 1;
+
+			if (gb_ext_aud_ch1_envelope >= ((gb_aud_nr12 & 0x07) << 17))
+			{
+				gb_ext_aud_ch1_envelope -= ((gb_aud_nr12 & 0x07) << 17);
+
+				if ((gb_aud_nr12 & 0x08) == 0x08)
+				{
+					if (gb_ext_aud_ch1_volume < 0x0F)
+					{
+						gb_ext_aud_ch1_volume += 1; // increase volume
+					}
+				}
+				else
+				{
+					if (gb_ext_aud_ch1_volume > 0x00)
+					{
+						gb_ext_aud_ch1_volume -= 1; // decrease volume
+					}
+				}
+			}
+		}
+	}
+	else
+	{
+		gb_ext_aud_ch1_value = 0x0000;
+	}
+
+	// channel 2
+	if ((gb_aud_nr52 & 0x02) == 0x02)
+	{
+		// period/length
+		gb_ext_aud_ch2_period += 8; 
+		
+		if (gb_ext_aud_ch2_period >= 2048)
+		{
+			gb_ext_aud_ch2_period -= 2048;
+
+			gb_ext_aud_ch2_period += (unsigned long)(((gb_aud_nr24 & 0x07) << 8) | (gb_aud_nr23 & 0xFF));
+			
+			gb_ext_aud_ch2_value = (unsigned short)((gb_ext_aud_ch2_value ^ 0x01FF) & 0x01FF); // max of 0x01FF for each channel
+
+			gb_ext_aud_ch2_envelope += 1;
+
+			if ((gb_aud_nr23 & 0x40) == 0x40)
+			{
+				gb_ext_aud_ch2_length += 1;
+
+				if (gb_ext_aud_ch2_length >= 64)
+				{
+					gb_aud_nr52 = (unsigned char)(gb_aud_nr52 & 0xFD); // disable channel 2
+				}
+			}
+		}
+
+		// volume/envelope
+		if ((gb_aud_nr22 & 0x07) != 0x00)
+		{
+			gb_ext_aud_ch2_envelope += 1;
+
+			if (gb_ext_aud_ch2_envelope >= ((gb_aud_nr22 & 0x07) << 17))
+			{
+				gb_ext_aud_ch2_envelope -= ((gb_aud_nr22 & 0x07) << 17);
+
+				if ((gb_aud_nr22 & 0x08) == 0x08)
+				{
+					if (gb_ext_aud_ch2_volume < 0x0F)
+					{
+						gb_ext_aud_ch2_volume += 1; // increase volume
+					}
+				}
+				else
+				{
+					if (gb_ext_aud_ch2_volume > 0x00)
+					{
+						gb_ext_aud_ch2_volume -= 1; // decrease volume
+					}
+				}
+			}
+		}
+	}
+	else
+	{
+		gb_ext_aud_ch2_value = 0x0000;
+	}
+
+	// mixer
+	gb_game_audio_buffer[gb_game_audio_write] =
+		(unsigned short)(gb_ext_aud_ch1_value * gb_ext_aud_ch1_volume * (((gb_aud_nr51 & 0x10) >> 4) + ((gb_aud_nr51 & 0x01)))) +
+		(unsigned short)(gb_ext_aud_ch2_value * gb_ext_aud_ch2_volume * (((gb_aud_nr51 & 0x20) >> 5) + ((gb_aud_nr51 & 0x02) >> 1)));
+	
+	gb_game_audio_write += 1;
+
+	if (gb_game_audio_write >= AUDIO_LEN)
+	{
+		gb_game_audio_write -= AUDIO_LEN;
+	}
+}
+
+
+// use after gb_run();
+void gb_updates()
+{
+	// serial cycles
+	if ((gb_io_sc & 0x81) == 0x81)
+	{
+		gb_ext_sb_cycles += gb_cpu_cycles;
+		
+		if (gb_ext_sb_cycles >= 512)
+		{
+			gb_ext_sb_cycles = 0;
+			
+			gb_io_if |= 0x08; // interrupt
+
+			gb_io_sc &= 0x80;
+		}
+	}
+
+	// lcd cycles
+	gb_ext_lx += gb_cpu_cycles;
+
+	if (gb_ext_lx >= 456) // horizontal max
+	{
+		gb_ext_lx -= 456;
+		gb_io_ly += 1;
+
+		if (gb_io_ly == 144) // vblank
+		{
+			gb_io_if = (gb_io_if | 0x01);
+			gb_game_draw = 1;
+		}
+		else if (gb_io_ly >= 154) // vertical max
+		{
+			gb_io_ly -= 154;
+		}
+	}	
+
+	if (gb_io_ly >= 144) // mode 1
+	{
+		if ((gb_io_stat & 0x03) != 0x01 && (gb_io_stat & 0x10) == 0x10)
+		{
+			if ((gb_io_lcdc & 0x80) == 0x80) gb_io_if = (gb_io_if | 0x02); // interrupt
+		}
+
+		gb_io_stat = ((gb_io_stat & 0xFC) | 0x01);
+	}
+	else
+	{
+		if (gb_ext_lx < 80) // mode 2
+		{
+			if ((gb_io_stat & 0x03) != 0x02 && (gb_io_stat & 0x20) == 0x20)
+			{
+				if ((gb_io_lcdc & 0x80) == 0x80) gb_io_if = (gb_io_if | 0x02); // interrupt
+			}
+
+			gb_io_stat = ((gb_io_stat & 0xFC) | 0x02);
+		}
+		else if (gb_ext_lx < 252) // mode 3
+		{
+			gb_io_stat = ((gb_io_stat & 0xFC) | 0x03);
+		}
+		else // mode 0
+		{
+			if ((gb_io_stat & 0x03) != 0x00)
+			{
+				if ((gb_io_stat & 0x08) == 0x08)
+				{
+					if ((gb_io_lcdc & 0x80) == 0x80) gb_io_if = (gb_io_if | 0x02); // interrupt
+				}
+
+				gb_line();
+			}
+
+			gb_io_stat = ((gb_io_stat & 0xFC) | 0x00);
+		}
+	}
+
+	if ((gb_io_lcdc & 0x80) == 0x00) // keep at 0 when off
+	{
+		gb_ext_lx = 0;
+		gb_io_ly = 0;
+
+		gb_io_stat = ((gb_io_stat & 0xFC));
+	}
+
+	if (gb_io_ly == gb_io_lyc) // compare
+	{
+		if ((gb_io_stat & 0x40) == 0x40)
+		{
+			if ((gb_io_lcdc & 0x80) == 0x80) gb_io_if = (gb_io_if | 0x02); // interrupt
+		}
+
+		gb_io_stat = ((gb_io_stat & 0xFB) | 0x04);
+	}
+	else
+	{
+		gb_io_stat = ((gb_io_stat & 0xFB) | 0x00);
+	}
+
+	// timer cycles
+	gb_ext_div_cycles += gb_cpu_cycles;
+	gb_ext_tima_cycles += gb_cpu_cycles;
+
+	if (gb_ext_div_cycles >= 256) // div increments
+	{	
+		gb_ext_div_cycles -= 256;
+		gb_io_div = (unsigned char)(gb_io_div + 1);
+	}
+
+	if ((gb_io_tac & 0x04) == 0x04) // tima increments
+	{
+		switch ((gb_io_tac & 0x03))
+		{
+			case 0x00:
+			{
+				if (gb_ext_tima_cycles >= 1024)
+				{
+					gb_ext_tima_cycles -= 1024;
+					gb_io_tima = (unsigned char)(gb_io_tima + 1);
+
+					if (gb_io_tima == 0x00) // overflow
+					{
+						gb_io_tima = (unsigned char)gb_io_tma;
+
+						gb_io_if = (gb_io_if | 0x04);
+					}
+				}
+				break;
+			}
+			case 0x01:
+			{
+				if (gb_ext_tima_cycles >= 16)
+				{
+					gb_ext_tima_cycles -= 16;
+					gb_io_tima = (unsigned char)(gb_io_tima + 1);
+		
+					if (gb_io_tima == 0x00) // overflow
+					{
+						gb_io_tima = (unsigned char)gb_io_tma;
+
+						gb_io_if = (gb_io_if | 0x04);
+					}
+				}
+				break;
+			}
+			case 0x02:
+			{
+				if (gb_ext_tima_cycles >= 64)
+				{
+					gb_ext_tima_cycles -= 64;
+					gb_io_tima = (unsigned char)(gb_io_tima + 1);
+
+					if (gb_io_tima == 0x00) // overflow
+					{
+						gb_io_tima = (unsigned char)gb_io_tma;
+
+						gb_io_if = (gb_io_if | 0x04);
+					}
+				}
+				break;
+			}
+			case 0x03:
+			{
+				if (gb_ext_tima_cycles >= 256)
+				{
+					gb_ext_tima_cycles -= 256;
+					gb_io_tima = (unsigned char)(gb_io_tima + 1);
+
+					if (gb_io_tima == 0x00) // overflow
+					{
+						gb_io_tima = (unsigned char)gb_io_tma;
+
+						gb_io_if = (gb_io_if | 0x04);
+					}
+				}
+				break;
+			}
+		}
+	}
+
+	// audio cycles
+	gb_ext_aud_cycles += gb_cpu_cycles;
+
+	while (gb_ext_aud_cycles >= 128)
+	{
+		gb_ext_aud_cycles -= 128;
+
+		gb_audio(); // audio at 32768 Hz sample rate
+	}
+
+	// joypad
+	if ((gb_io_joyp & 0x30) == 0x10) // buttons
+	{
+		if (((gb_game_buttons_previous ^ gb_game_buttons_current) & 0x0F) != 0x00 &&
+			((gb_game_buttons_previous ^ gb_game_buttons_current) & gb_game_buttons_current & 0x0F) == 0x00)
+		{
+			gb_io_if = (gb_io_if | 0x10); // interrupt
+		}
+	} 
+	else if ((gb_io_joyp & 0x30) == 0x20) // d-pad
+	{
+		if (((gb_game_buttons_previous ^ gb_game_buttons_current) & 0xF0) != 0x00 &&
+			((gb_game_buttons_previous ^ gb_game_buttons_current) & gb_game_buttons_current & 0xF0) == 0x00)
+		{
+			gb_io_if = (gb_io_if | 0x10); // interrupt
+		}
+	}
+
+	// clear cycles
+	gb_cpu_cycles = 0;
+}
+
+// use after gb_run();
+void gb_interrupts()
+{
+	if ((gb_io_ie & gb_io_if & 0x1F)) // any
+	{
+		gb_cpu_halt = 0;
+	}
+
+	if (gb_cpu_ime == 0x00)
+	{
+		return;
+	}
+
+	if ((gb_io_ie & gb_io_if & 0x01)) // vblank
+	{
+		//printf("VBLANK\n");
+
+		gb_io_if = (gb_io_if & 0xFE);
+		gb_def_push_16(gb_reg_pc.r16);
+		gb_reg_pc.r16 = 0x0040;
+		gb_def_cycles(20);
+		gb_cpu_ime = 0;
+	}
+	else if ((gb_io_ie & gb_io_if & 0x02)) // lcd/stat
+	{
+		//printf("LCD/STAT %02X\n", (unsigned char)gb_io_stat);
+
+		gb_io_if = (gb_io_if & 0xFD);
+		gb_def_push_16(gb_reg_pc.r16);
+		gb_reg_pc.r16 = 0x0048;
+		gb_def_cycles(20);
+		gb_cpu_ime = 0;
+	}
+	else if ((gb_io_ie & gb_io_if & 0x04)) // timer
+	{
+		//printf("TIMER\n");
+
+		gb_io_if = (gb_io_if & 0xFB);
+		gb_def_push_16(gb_reg_pc.r16);
+		gb_reg_pc.r16 = 0x0050;
+		gb_def_cycles(20);
+		gb_cpu_ime = 0;
+	}
+	else if ((gb_io_ie & gb_io_if & 0x08)) // serial
+	{
+		//printf("SERIAL\n");
+
+		gb_io_if = (gb_io_if & 0xF7);
+		gb_def_push_16(gb_reg_pc.r16);
+		gb_reg_pc.r16 = 0x0058;
+		gb_def_cycles(20);
+		gb_cpu_ime = 0;
+	}
+	else if ((gb_io_ie & gb_io_if & 0x10)) // joypad
+	{
+		//printf("JOYPAD\n");
+
+		gb_io_if = (gb_io_if & 0xEF);
+		gb_def_push_16(gb_reg_pc.r16);
+		gb_reg_pc.r16 = 0x0060;
+		gb_def_cycles(20);
+		gb_cpu_ime = 0;
+	}
+}
 
 
 // using OpenAL
@@ -5641,16 +5994,16 @@ void openal_play()
 {
 	if (openal_enable == 0) return;
 
-	for (int i=0; i<AUDIO_LEN; i++) openal_data[i] = gb_game_audio_buffer[i];
+	for (int i=0; i<AUDIO_LEN; i++) openal_data[i] = (unsigned short)(gb_game_audio_buffer[i]); // unsigned
 
 	alGenBuffers(1, &openal_buffer);
-	alBufferData(openal_buffer, AL_FORMAT_MONO8, openal_data, AUDIO_LEN, 61542); // calculations: 61542 = 1024 * 60.0988 + 1
+	alBufferData(openal_buffer, AL_FORMAT_MONO16, openal_data, 1098, 32768); // calculation: 70224 / 128 * 2 = 1097.25
 	alSourcei(openal_source, AL_BUFFER, openal_buffer);
 	alSourcePlay(openal_source);
 	
 	for (int i=0; i<AUDIO_LEN; i++)
 	{
-		gb_game_audio_buffer[i] = 0x80; // signed
+		gb_game_audio_buffer[i] = 0x0000; // unsigned
 	}
 
 	gb_game_audio_read = 0;
@@ -5848,20 +6201,15 @@ int main(const int argc, const char **argv)
 		gb_updates();
 		gb_interrupts();
 		
-		if (gb_ext_draw > 0)
-		{
-			gb_ext_draw = 0;
-
-			gb_game_wait();
-
-			gb_game_draw = 1;
-		}
 
 		if (gb_game_draw > 0)
 		{
 			gb_game_draw = 0;
 
+			gb_game_wait();
 
+			openal_play();
+			
 #ifdef DEBUG
 			if (gb_reg_pc.r16 == debug_cycles_address)
 			{
