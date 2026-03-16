@@ -273,41 +273,41 @@ unsigned long gb_ext_dma_addr = 0;
 
 #define gb_def_rlc_8(A) { \
 	A = (unsigned char)((A << 1) | (A >> 7)); \
-	gb_reg_af.r8.f &= 0x00; \
+	gb_reg_af.r8.f = 0x00; \
 	gb_reg_af.r8.f |= ((A & 0x01) ? 0x10 : 0x00); \
 	gb_reg_af.r8.f |= ((A & 0xFF) == 0x00 ? 0x80 : 0x00); }
 
 #define gb_def_sla_8(A) { \
 	gb_cpu_storage = (unsigned char)((A & 0x80) >> 3); \
 	A = (unsigned char)((A << 1)); \
-	gb_reg_af.r8.f &= 0x00; \
+	gb_reg_af.r8.f = 0x00; \
 	gb_reg_af.r8.f |= gb_cpu_storage; \
 	gb_reg_af.r8.f |= ((A & 0xFF) == 0x00 ? 0x80 : 0x00); }
 
 #define gb_def_rl_8(A) { \
 	gb_cpu_storage = (unsigned char)((A & 0x80) >> 3); \
 	A = (unsigned char)((A << 1) | ((gb_reg_af.r8.f & 0x10) >> 4)); \
-	gb_reg_af.r8.f &= 0x00; \
+	gb_reg_af.r8.f = 0x00; \
 	gb_reg_af.r8.f |= gb_cpu_storage; \
 	gb_reg_af.r8.f |= ((A & 0xFF) == 0x00 ? 0x80 : 0x00); }
 
 #define gb_def_rrc_8(A) { \
 	A = (unsigned char)((A >> 1) | (A << 7)); \
-	gb_reg_af.r8.f &= 0x00; \
+	gb_reg_af.r8.f = 0x00; \
 	gb_reg_af.r8.f |= ((A & 0x80) ? 0x10 : 0x00); \
 	gb_reg_af.r8.f |= ((A & 0xFF) == 0x00 ? 0x80 : 0x00); }
 
 #define gb_def_sra_8(A) { \
 	gb_cpu_storage = (unsigned char)((A & 0x01) << 4); \
 	A = (unsigned char)((A >> 1) | (A & 0x80)); \
-	gb_reg_af.r8.f &= 0x00; \
+	gb_reg_af.r8.f = 0x00; \
 	gb_reg_af.r8.f |= gb_cpu_storage; \
 	gb_reg_af.r8.f |= ((A & 0xFF) == 0x00 ? 0x80 : 0x00); }
 
 #define gb_def_rr_8(A) { \
 	gb_cpu_storage = (unsigned char)((A & 0x01) << 4); \
 	A = (unsigned char)((A >> 1) | ((gb_reg_af.r8.f & 0x10) << 3)); \
-	gb_reg_af.r8.f &= 0x00; \
+	gb_reg_af.r8.f = 0x00; \
 	gb_reg_af.r8.f |= gb_cpu_storage; \
 	gb_reg_af.r8.f |= ((A & 0xFF) == 0x00 ? 0x80 : 0x00); }
 
@@ -361,7 +361,7 @@ unsigned long gb_ext_dma_addr = 0;
 #define gb_def_srl_8(A) { \
 	gb_cpu_storage = (unsigned char)((A & 0x01) << 4); \
 	A = (unsigned char)((A >> 1) & 0x7F); \
-	gb_reg_af.r8.f &= 0x00; \
+	gb_reg_af.r8.f = 0x00; \
 	gb_reg_af.r8.f |= gb_cpu_storage; \
 	gb_reg_af.r8.f |= ((A & 0xFF) == 0x00 ? 0x80 : 0x00); }
 
@@ -379,11 +379,11 @@ unsigned long gb_ext_dma_addr = 0;
 // flags
 #define gb_def_flag_z_calc_16() { \
 	gb_reg_af.r8.f &= 0x70; \
-	gb_reg_af.r8.f |= ((gb_cpu_result & 0xFFFF) == 0x0000 ? 0x80 : 0x00); }
+	gb_reg_af.r8.f |= ((gb_cpu_result & 0x0000FFFF) == 0x00000000 ? 0x80 : 0x00); }
 
 #define gb_def_flag_z_calc_8() { \
 	gb_reg_af.r8.f &= 0x70; \
-	gb_reg_af.r8.f |= ((gb_cpu_result & 0x00FF) == 0x0000 ? 0x80 : 0x00); }
+	gb_reg_af.r8.f |= ((gb_cpu_result & 0x000000FF) == 0x00000000 ? 0x80 : 0x00); }
 
 #define gb_def_flag_z_set() { \
 	gb_reg_af.r8.f |= 0x80; }
@@ -405,11 +405,11 @@ unsigned long gb_ext_dma_addr = 0;
 
 #define gb_def_flag_c_calc_16() { \
 	gb_reg_af.r8.f &= 0xE0; \
-	gb_reg_af.r8.f |= (((unsigned long)gb_cpu_result & 0x00010000) == 0x00010000 ? 0x10 : 0x00); }
+	gb_reg_af.r8.f |= (((unsigned long)gb_cpu_result & 0xFFFF0000) != 0x00000000 ? 0x10 : 0x00); }
 
 #define gb_def_flag_c_calc_8() { \
 	gb_reg_af.r8.f &= 0xE0; \
-	gb_reg_af.r8.f |= (((unsigned long)gb_cpu_result & 0x00000100) == 0x00000100 ? 0x10 : 0x00); }
+	gb_reg_af.r8.f |= (((unsigned long)gb_cpu_result & 0xFFFFFF00) != 0x00000000 ? 0x10 : 0x00); }
 
 #define gb_def_flag_c_set() { \
 	gb_reg_af.r8.f |= 0x10; }
@@ -1301,7 +1301,7 @@ void gb_line()
 	{
 		if ((gb_io_lcdc & 0x04) == 0x00) // 8x8 objects
 		{
-			for (unsigned long i=0; i<160; i+=4)
+			for (signed int i=156; i>=0; i-=4)
 			{
 				spr = (signed int)(gb_io_ly - gb_mem_oam[i] + 16);
 				
@@ -1466,7 +1466,7 @@ void gb_line()
 		}
 		else // 8x16 objects
 		{
-			for (unsigned long i=0; i<160; i+=4)
+			for (signed int i=156; i>=0; i-=4)
 			{
 				spr = (signed int)(gb_io_ly - gb_mem_oam[i] + 16);
 
@@ -1920,7 +1920,7 @@ void gb_run()
 		gb_reg_af.r8.a, gb_reg_bc.r8.b, gb_reg_bc.r8.c, gb_reg_de.r8.d, gb_reg_de.r8.e, gb_reg_af.r8.f, gb_reg_hl.r8.h, gb_reg_hl.r8.l, gb_reg_sp.r16, 
 		(unsigned char)gb_cpu_ime, (unsigned char)gb_io_ie, (unsigned char)gb_io_if);
 
-	printf("*LCDC=%02X STAT=%02X\n", (unsigned char)gb_io_lcdc, (unsigned char)gb_io_stat);
+	printf("*%02X\n", (unsigned char)gb_mem_hram[0x1D]);
 
 #endif
 
@@ -1999,8 +1999,9 @@ void gb_run()
 		case 0x07:
 		{
 			// RLCA
-			gb_def_rlc_8(gb_reg_af.r8.a);
-			gb_def_flag_z_clr();
+			gb_reg_af.r8.a = (gb_reg_af.r8.a << 1) | (gb_reg_af.r8.a >> 7);
+			gb_reg_af.r8.f = 0x00;
+			gb_reg_af.r8.f = ((gb_reg_af.r8.a & 0x01) << 4);
 			gb_def_cycles(4);
 			break;
 		}
@@ -2013,7 +2014,7 @@ void gb_run()
 			gb_def_read_8(gb_reg_pc.r16, gb_cpu_operand.r8.high);
 			gb_def_step(gb_reg_pc.r16, 1);
 			gb_def_write_8(gb_cpu_operand.r16, gb_reg_sp.r8.low);
-			gb_cpu_operand.r16 = (unsigned short)((unsigned short)gb_cpu_operand.r16 + 1);
+			gb_def_step(gb_cpu_operand.r16, 1);
 			gb_def_write_8(gb_cpu_operand.r16, gb_reg_sp.r8.high);
 			gb_def_cycles(20);
 			break;
@@ -2078,8 +2079,9 @@ void gb_run()
 		case 0x0F:
 		{
 			// RRCA
-			gb_def_rrc_8(gb_reg_af.r8.a);
-			gb_def_flag_z_clr();
+			gb_reg_af.r8.f = 0x00;
+			gb_reg_af.r8.f |= ((gb_reg_af.r8.a & 0x01) == 0x01 ? 0x10 : 0x00);
+			gb_reg_af.r8.a = (gb_reg_af.r8.a >> 1) | (gb_reg_af.r8.a << 7);
 			gb_def_cycles(4);
 			break;
 		}
@@ -2158,11 +2160,10 @@ void gb_run()
 		case 0x17:
 		{
 			// RLA
-			gb_def_rl_8(gb_reg_af.r8.a);
-			gb_def_flag_z_clr();
-			gb_def_flag_n_clr();
-			gb_def_flag_h_clr();
-			gb_def_flag_c_calc_8();
+			gb_cpu_operand.r8.low = ((gb_reg_af.r8.a & 0x80) >> 3);
+			gb_reg_af.r8.a = (gb_reg_af.r8.a << 1) | ((gb_reg_af.r8.f & 0x10) >> 4);
+			gb_reg_af.r8.f = 0x00;
+			gb_reg_af.r8.f |= gb_cpu_operand.r8.low;
 			gb_def_cycles(4);
 			break;
 		}
@@ -2236,11 +2237,10 @@ void gb_run()
 		case 0x1F:
 		{
 			// RRA
-			gb_def_rr_8(gb_reg_af.r8.a);
-			gb_def_flag_z_clr();
-			gb_def_flag_n_clr();
-			gb_def_flag_h_clr();
-			gb_def_flag_c_calc_8();
+			gb_cpu_operand.r8.low = ((gb_reg_af.r8.a & 0x01) << 4);
+			gb_reg_af.r8.a = (gb_reg_af.r8.a >> 1) | ((gb_reg_af.r8.f & 0x10) << 3);
+			gb_reg_af.r8.f = 0x00;
+			gb_reg_af.r8.f |= gb_cpu_operand.r8.low;
 			gb_def_cycles(4);
 			break;
 		}
@@ -2523,7 +2523,7 @@ void gb_run()
 			gb_cpu_result = (unsigned char)((unsigned char)gb_cpu_result - 1);
 			gb_def_write_8(gb_reg_hl.r16, (unsigned char)gb_cpu_result);
 			gb_def_flag_z_calc_8();
-			gb_def_flag_n_clr();
+			gb_def_flag_n_set();
 			gb_reg_af.r8.f &= 0xD0;
 			gb_reg_af.r8.f |= ((gb_cpu_result & 0x0F) == 0x0F ? 0x20 : 0x00);
 			gb_def_cycles(12);
@@ -4309,6 +4309,7 @@ void gb_run()
 		case 0xE8:
 		{
 			// ADD SP,N
+/*
 			gb_def_read_8(gb_reg_pc.r16, gb_cpu_operand.r8.low);
 			gb_def_step(gb_reg_pc.r16, 1);
 			gb_cpu_result = (unsigned short)((unsigned short)gb_reg_sp.r16 + (signed char)gb_cpu_operand.r8.low);
@@ -4318,6 +4319,14 @@ void gb_run()
 			gb_def_flag_z_clr();
 			gb_def_flag_n_clr();
 			gb_def_flag_c_calc_16();
+*/
+			gb_def_read_8(gb_reg_pc.r16, gb_cpu_operand.r8.low);
+			gb_def_step(gb_reg_pc.r16, 1);
+			gb_reg_af.r8.f = 0x00;
+			gb_reg_af.r8.f |= (((gb_reg_sp.r16 & 0x0F) + (gb_cpu_operand.r8.low & 0x0F) > 0x0F) ? 0x20 : 0x00);
+			gb_reg_af.r8.f |= (((gb_reg_sp.r16 & 0xFF) + (gb_cpu_operand.r8.low & 0xFF) > 0xFF) ? 0x10 : 0x00);
+			gb_reg_sp.r16 = (unsigned short)(gb_reg_sp.r16 + (signed char)gb_cpu_operand.r8.low);
+
 			gb_def_cycles(16);
 			break;
 		}
@@ -4475,7 +4484,8 @@ void gb_run()
 		//0xF8:{opcode:LD,bytes:2,cycles:[12],operands:[{name:HL,imm:true},{name:SP,inc:true,imm:true},{name:e8,bytes:1,imm:true}],imm:true,flags:{Z:0,N:0,H:H,C:C}}
 		case 0xF8:
 		{
-			// LD HL,SP+N		
+			// LD HL,SP+N
+/*		
 			gb_def_read_8(gb_reg_pc.r16, gb_cpu_operand.r8.low);
 			gb_def_step(gb_reg_pc.r16, 1);
 			gb_cpu_result = (unsigned long)((unsigned short)gb_reg_sp.r16 + (signed char)gb_cpu_operand.r8.low);
@@ -4485,6 +4495,14 @@ void gb_run()
 			gb_def_flag_z_clr();
 			gb_def_flag_n_clr();
 			gb_def_flag_c_calc_8();
+*/
+			gb_def_read_8(gb_reg_pc.r16, gb_cpu_operand.r8.low);
+			gb_def_step(gb_reg_pc.r16, 1);
+			gb_reg_hl.r16 = (unsigned short)(gb_reg_sp.r16 + (signed char)gb_cpu_operand.r8.low);
+			gb_reg_af.r8.f = 0x00;
+			gb_reg_af.r8.f |= (((gb_reg_sp.r16 & 0x0F) + (gb_cpu_operand.r8.low & 0x0F) > 0x0F) ? 0x20 : 0x00);
+			gb_reg_af.r8.f |= (((gb_reg_sp.r16 & 0xFF) + (gb_cpu_operand.r8.low & 0xFF) > 0xFF) ? 0x10 : 0x00);
+
 			gb_def_cycles(12);
 			break;
 		}
@@ -5824,140 +5842,8 @@ int main(const int argc, const char **argv)
 
 #ifdef DEBUG
 		}
+#endif
 
-		if (gb_reg_pc.r16 == debug_cycles_address)
-		{
-			if (debug_cycles_occurances == 1)
-			{
-				debug_cycles_start = 1;
-				debug_wait_pause = 1;
-			}
-			else
-			{
-				debug_cycles_occurances--;
-			}
-		}
-
-		if (debug_cycles_start > 0 && debug_wait_pause > 0)
-		{
-			debug_wait_pause = 0;
-
-			debug_cycles_current = 4;
-			debug_cycles_next = 0;
-		}
-
-		if (debug_cycles_start > 0)
-		{
-			debug_cycles_current += gb_cpu_cycles;
-		}
-
-		if (debug_cycles_current > debug_cycles_next)
-		{
-			debug_wait_loop = 1;		
-
-			if (opengl_keyboard_state[GLFW_KEY_1] == 1)
-			{
-				if (debug_wait_hold == 0)
-				{
-					debug_cycles_next = debug_cycles_current + 4;
-					debug_wait_loop = 0;
-					debug_wait_hold = 1;
-				}
-			}
-			else if (opengl_keyboard_state[GLFW_KEY_2] == 1)
-			{
-				if (debug_wait_hold == 0)
-				{
-					debug_cycles_next = debug_cycles_current + 40;
-					debug_wait_loop = 0;
-					debug_wait_hold = 1;
-				}
-			}	
-			else if (opengl_keyboard_state[GLFW_KEY_3] == 1)
-			{
-				if (debug_wait_hold == 0)
-				{
-					debug_cycles_next = debug_cycles_current + 400;
-					debug_wait_loop = 0;
-					debug_wait_hold = 1;
-				}
-			}
-			else if (opengl_keyboard_state[GLFW_KEY_4] == 1)
-			{
-				if (debug_wait_hold == 0)
-				{
-					debug_cycles_next = debug_cycles_current + 4000;
-					debug_wait_loop = 0;
-					debug_wait_hold = 1;
-				}
-			}
-			else if (opengl_keyboard_state[GLFW_KEY_5] == 1)
-			{
-				if (debug_wait_hold == 0)		
-				{
-					debug_cycles_next = debug_cycles_current + 40000;
-					debug_wait_loop = 0;
-					debug_wait_hold = 1;
-				}
-			}
-			else if (opengl_keyboard_state[GLFW_KEY_6] == 1)
-			{
-				if (debug_wait_hold == 0)		
-				{
-					debug_cycles_next = debug_cycles_current + 400000;
-					debug_wait_loop = 0;
-					debug_wait_hold = 1;
-				}
-			}
-			else if (opengl_keyboard_state[GLFW_KEY_7] == 1)
-			{
-				if (debug_wait_hold == 0)		
-				{
-					debug_cycles_next = debug_cycles_current + 40000000;
-					debug_wait_loop = 0;
-					debug_wait_hold = 1;
-				}
-			}
-			else if (opengl_keyboard_state[GLFW_KEY_9] == 1)
-			{
-				if (debug_wait_hold == 0)		
-				{
-					debug_cycles_next = debug_cycles_current + 400000000;
-					debug_wait_loop = 0;
-					debug_wait_hold = 1;
-				}
-			}
-			else if (opengl_keyboard_state[GLFW_KEY_0] == 1)
-			{
-				if (debug_wait_hold == 0)
-				{
-					for (int i=0; i<8; i++)
-					{
-						for (int j=0; j<16; j++)
-						{
-							printf("%02X ", gb_mem_hram[i*16+j]);
-						}
-
-						printf("\n");
-					}
-
-					debug_wait_hold = 1;
-				}
-			}
-			else 
-			{
-				debug_wait_hold = 0;
-			}
-		}
-
-		debug_draw_counter++;
-		if (debug_draw_counter > 100)
-		{
-			debug_draw_counter = 0;
-			gb_game_draw = 1;
-		}
-
-#endif	
 	
 		gb_updates();
 		gb_interrupts();
@@ -5974,6 +5860,142 @@ int main(const int argc, const char **argv)
 		if (gb_game_draw > 0)
 		{
 			gb_game_draw = 0;
+
+
+#ifdef DEBUG
+			if (gb_reg_pc.r16 == debug_cycles_address)
+			{
+				if (debug_cycles_occurances == 1)
+				{
+					debug_cycles_start = 1;
+					debug_wait_pause = 1;
+				}
+				else
+				{
+					debug_cycles_occurances--;
+				}
+			}
+
+			if (debug_cycles_start > 0 && debug_wait_pause > 0)
+			{
+				debug_wait_pause = 0;
+
+				debug_cycles_current = 4;
+				debug_cycles_next = 0;
+			}
+
+			if (debug_cycles_start > 0)
+			{
+				debug_cycles_current += gb_cpu_cycles;
+			}
+
+			if (debug_cycles_current > debug_cycles_next)
+			{
+				debug_wait_loop = 1;		
+
+				if (opengl_keyboard_state[GLFW_KEY_1] == 1)
+				{
+					if (debug_wait_hold == 0)
+					{
+						debug_cycles_next = debug_cycles_current + 4;
+						debug_wait_loop = 0;
+						debug_wait_hold = 1;
+					}
+				}
+				else if (opengl_keyboard_state[GLFW_KEY_2] == 1)
+				{
+					if (debug_wait_hold == 0)
+					{
+						debug_cycles_next = debug_cycles_current + 40;
+						debug_wait_loop = 0;
+						debug_wait_hold = 1;
+					}
+				}	
+				else if (opengl_keyboard_state[GLFW_KEY_3] == 1)
+				{
+					if (debug_wait_hold == 0)
+					{
+						debug_cycles_next = debug_cycles_current + 400;
+						debug_wait_loop = 0;
+						debug_wait_hold = 1;
+					}
+				}
+				else if (opengl_keyboard_state[GLFW_KEY_4] == 1)
+				{
+					if (debug_wait_hold == 0)
+					{
+						debug_cycles_next = debug_cycles_current + 4000;
+						debug_wait_loop = 0;
+						debug_wait_hold = 1;
+					}
+				}
+				else if (opengl_keyboard_state[GLFW_KEY_5] == 1)
+				{
+					if (debug_wait_hold == 0)		
+					{
+						debug_cycles_next = debug_cycles_current + 40000;
+						debug_wait_loop = 0;
+						debug_wait_hold = 1;
+					}
+				}
+				else if (opengl_keyboard_state[GLFW_KEY_6] == 1)
+				{
+					if (debug_wait_hold == 0)		
+					{
+						debug_cycles_next = debug_cycles_current + 400000;
+						debug_wait_loop = 0;
+						debug_wait_hold = 1;
+					}
+				}
+				else if (opengl_keyboard_state[GLFW_KEY_7] == 1)
+				{
+					if (debug_wait_hold == 0)		
+					{
+						debug_cycles_next = debug_cycles_current + 40000000;
+						debug_wait_loop = 0;
+						debug_wait_hold = 1;
+					}
+				}
+				else if (opengl_keyboard_state[GLFW_KEY_9] == 1)
+				{
+					if (debug_wait_hold == 0)		
+					{
+						debug_cycles_next = debug_cycles_current + 400000000;
+						debug_wait_loop = 0;
+						debug_wait_hold = 1;
+					}
+				}
+				else if (opengl_keyboard_state[GLFW_KEY_0] == 1)
+				{
+					if (debug_wait_hold == 0)
+					{
+						for (int i=0; i<8; i++)
+						{
+							for (int j=0; j<16; j++)
+							{
+								printf("%02X ", gb_mem_hram[i*16+j]);
+							}
+
+							printf("\n");
+						}
+
+						debug_wait_hold = 1;
+					}
+				}
+				else 
+				{
+					debug_wait_hold = 0;
+				}
+			}
+
+			debug_draw_counter++;
+			if (debug_draw_counter > 100)
+			{
+				debug_draw_counter = 0;
+				gb_game_draw = 1;
+			}
+
+#endif	
 
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 			glLoadIdentity();
