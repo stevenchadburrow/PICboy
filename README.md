@@ -1,5 +1,5 @@
 # PICboy
-A Gameboy (Color) Emulator designed for use in Microcontrollers<br>
+A fast Gameboy (Color) Emulator designed for use in Microcontrollers<br>
 
 This emulator is completely hand-made without any previous code used, though it was inspired by <a href="https://github.com/deltabeard/Peanut-GB">Peanut-GB</a> and used it for reference occasionally.<br>
 
