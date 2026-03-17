@@ -17,6 +17,6 @@ As of now, it is a full DMG emulator with audio included, for No-MBC, MBC1, MBC3
 
 <b>Images:</b><br>
 <table>
-  <tr><td><img src="Images/Tetris.png"></td><td><img src="Tetris2.png"></td></tr>
-  <tr><td><img src="Alleyway1.png"></td><td><img src="Alleyway2.png"></td></tr>
+  <tr><td><img src="Images/Tetris.png"></td><td><img src="Images/ExpPak.png"></td></tr>
+  <tr><td><img src="Images/ZeldaDX.png"></td><td><img src="Images/TobuDX.png"></td></tr>
 </table>
