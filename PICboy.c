@@ -26,7 +26,7 @@ unsigned long debug_inst_list[512];
 
 #define SCREEN_X 160
 #define SCREEN_Y 144
-#define AUDIO_LEN 1024
+#define AUDIO_LEN 2048
 
 // uses OpenGL for graphics and keyboard
 #include <GLFW/glfw3.h>
@@ -1332,7 +1332,7 @@ void gb_write(unsigned short addr, unsigned char val)
 			{
 				gb_aud_nr11 = (unsigned char)val;
 
-				gb_ext_ch1_length = (unsigned long)((gb_aud_nr11 & 0x3F) << 17);
+				gb_ext_ch1_length = (unsigned long)((gb_aud_nr11 & 0x3F) << 7);
 
 				break;
 			}
@@ -1362,7 +1362,7 @@ void gb_write(unsigned short addr, unsigned char val)
 
 					gb_ext_ch1_period = (unsigned long)(((gb_aud_nr14 & 0x07) << 8) | (gb_aud_nr13 & 0xFF));
 
-					gb_ext_ch1_length = (unsigned long)((gb_aud_nr11 & 0x3F) << 17);
+					gb_ext_ch1_length = (unsigned long)((gb_aud_nr11 & 0x3F) << 7);
 
 					gb_ext_ch1_volume = (unsigned long)((gb_aud_nr12 & 0xF0) >> 4);
 
@@ -1375,7 +1375,7 @@ void gb_write(unsigned short addr, unsigned char val)
 			{
 				gb_aud_nr21 = (unsigned char)val;
 
-				gb_ext_ch2_length = (unsigned long)((gb_aud_nr21 & 0x3F) << 17);
+				gb_ext_ch2_length = (unsigned long)((gb_aud_nr21 & 0x3F) << 7);
 
 				break;
 			}
@@ -1407,7 +1407,7 @@ void gb_write(unsigned short addr, unsigned char val)
 
 					gb_ext_ch2_period = (unsigned long)(((gb_aud_nr24 & 0x07) << 8) | (gb_aud_nr23 & 0xFF));
 
-					gb_ext_ch2_length = (unsigned long)((gb_aud_nr21 & 0x3F) << 17);
+					gb_ext_ch2_length = (unsigned long)((gb_aud_nr21 & 0x3F) << 7);
 
 					gb_ext_ch2_volume = (unsigned long)((gb_aud_nr22 & 0xF0) >> 4);
 
@@ -1426,7 +1426,7 @@ void gb_write(unsigned short addr, unsigned char val)
 			{
 				gb_aud_nr31 = (unsigned char)val;
 
-				gb_ext_ch2_length = (unsigned long)(gb_aud_nr31 << 17);
+				gb_ext_ch3_length = (unsigned long)(gb_aud_nr31 << 7);
 
 				break;
 			}
@@ -1464,7 +1464,7 @@ void gb_write(unsigned short addr, unsigned char val)
 			{
 				gb_aud_nr33 = (unsigned char)val;
 
-				gb_ext_ch2_period = (unsigned long)(((gb_aud_nr34 & 0x07) << 8) | (gb_aud_nr33 & 0xFF));
+				gb_ext_ch3_period = (unsigned long)(((gb_aud_nr34 & 0x07) << 8) | (gb_aud_nr33 & 0xFF));
 
 				break;
 			}
@@ -1478,7 +1478,7 @@ void gb_write(unsigned short addr, unsigned char val)
 
 					gb_ext_ch3_period = (unsigned long)(((gb_aud_nr34 & 0x07) << 8) | (gb_aud_nr33 & 0xFF));
 
-					gb_ext_ch3_length = (unsigned long)(gb_aud_nr31 << 17);
+					gb_ext_ch3_length = (unsigned long)(gb_aud_nr31 << 7);
 
 					switch ((gb_aud_nr32 & 0x60))
 					{
@@ -1513,7 +1513,7 @@ void gb_write(unsigned short addr, unsigned char val)
 			{
 				gb_aud_nr41 = (unsigned char)val;
 
-				gb_ext_ch4_length = (unsigned long)((gb_aud_nr41 & 0x3F) << 17);
+				gb_ext_ch4_length = (unsigned long)((gb_aud_nr41 & 0x3F) << 7);
 
 				break;
 			}
@@ -1547,7 +1547,7 @@ void gb_write(unsigned short addr, unsigned char val)
 
 					gb_ext_ch4_period = 0x0000;
 
-					gb_ext_ch4_length = (unsigned long)((gb_aud_nr41 & 0x3F) << 17);
+					gb_ext_ch4_length = (unsigned long)((gb_aud_nr41 & 0x3F) << 7);
 
 					gb_ext_ch4_volume = (unsigned long)((gb_aud_nr42 & 0xF0) >> 4);
 
@@ -5820,7 +5820,7 @@ void gb_audio()
 	if ((gb_aud_nr52 & 0x01) == 0x01)
 	{
 		// period
-		gb_ext_ch1_period += 8; 
+		gb_ext_ch1_period += 8; // doubled for full wavelength
 		
 		if (gb_ext_ch1_period >= 2048)
 		{
@@ -5832,11 +5832,11 @@ void gb_audio()
 		}
 
 		// length
-		if ((gb_aud_nr13 & 0x40) == 0x40)
+		if ((gb_aud_nr14 & 0x40) == 0x40)
 		{
 			gb_ext_ch1_length += 1;
 
-			if (gb_ext_ch1_length >= 32768) // 64 << 17
+			if (gb_ext_ch1_length >= 8192) // 64 << 7
 			{
 				gb_aud_nr52 = (unsigned char)(gb_aud_nr52 & 0xFE); // disable channel 1
 			}
@@ -5857,6 +5857,8 @@ void gb_audio()
 					{
 						gb_ext_ch1_volume += 1; // increase volume
 					}
+
+					//gb_ext_ch1_volume = (unsigned long)((gb_ext_ch1_volume + 1) & 0x0F);
 				}
 				else
 				{
@@ -5864,6 +5866,8 @@ void gb_audio()
 					{
 						gb_ext_ch1_volume -= 1; // decrease volume
 					}
+
+					//gb_ext_ch1_volume = (unsigned long)((gb_ext_ch1_volume - 1) & 0x0F);
 				}
 			}
 		}
@@ -5871,11 +5875,11 @@ void gb_audio()
 		// sweep (channel 1 only)
 		if ((gb_aud_nr10 & 0x70) != 0x00)
 		{
-			gb_ext_ch1_sweep += 1;
+			gb_ext_ch1_sweep += ((gb_aud_nr10 & 0x70) >> 4);
 			
-			if (gb_ext_ch1_sweep >= ((gb_aud_nr10 & 0x70) << 12))
+			if (gb_ext_ch1_sweep >= 256)
 			{
-				gb_ext_ch1_sweep -= ((gb_aud_nr10 & 0x70) << 12);
+				gb_ext_ch1_sweep -= 256;
 
 				gb_ext_ch1_temp = (unsigned long)(((gb_aud_nr14 & 0x07) << 8) | (gb_aud_nr13 & 0xFF));
 
@@ -5914,7 +5918,7 @@ void gb_audio()
 	if ((gb_aud_nr52 & 0x02) == 0x02)
 	{
 		// period
-		gb_ext_ch2_period += 8; 
+		gb_ext_ch2_period += 8; // doubled for full wavelength
 		
 		if (gb_ext_ch2_period >= 2048)
 		{
@@ -5926,11 +5930,11 @@ void gb_audio()
 		}
 
 		// length
-		if ((gb_aud_nr23 & 0x40) == 0x40)
+		if ((gb_aud_nr24 & 0x40) == 0x40)
 		{
 			gb_ext_ch2_length += 1;
 
-			if (gb_ext_ch2_length >= 32768) // 64 << 17
+			if (gb_ext_ch2_length >= 8192) // 64 << 7
 			{
 				gb_aud_nr52 = (unsigned char)(gb_aud_nr52 & 0xFD); // disable channel 2
 			}
@@ -5951,6 +5955,8 @@ void gb_audio()
 					{
 						gb_ext_ch2_volume += 1; // increase volume
 					}
+
+					//gb_ext_ch2_volume = (unsigned long)((gb_ext_ch2_volume + 1) & 0x0F);
 				}
 				else
 				{
@@ -5958,6 +5964,8 @@ void gb_audio()
 					{
 						gb_ext_ch2_volume -= 1; // decrease volume
 					}
+
+					//gb_ext_ch2_volume = (unsigned long)((gb_ext_ch2_volume - 1) & 0x0F);
 				}
 			}
 		}
@@ -5971,7 +5979,7 @@ void gb_audio()
 	if ((gb_aud_nr52 & 0x04) == 0x04 && (gb_aud_nr30 & 0x80) == 0x80)
 	{
 		// period
-		gb_ext_ch3_period += 16 * 4; 
+		gb_ext_ch3_period += 4; // half freqency of pulse channels
 		
 		if (gb_ext_ch3_period >= 2048)
 		{
@@ -5992,11 +6000,11 @@ void gb_audio()
 		}
 
 		// length
-		if ((gb_aud_nr33 & 0x40) == 0x40)
+		if ((gb_aud_nr34 & 0x40) == 0x40)
 		{
 			gb_ext_ch3_length += 1;
 
-			if (gb_ext_ch3_length >= 131072) // 256 << 17
+			if (gb_ext_ch3_length >= 32768) // 256 << 7
 			{
 				gb_aud_nr52 = (unsigned char)(gb_aud_nr52 & 0xFB); // disable channel 3
 			}
@@ -6013,13 +6021,20 @@ void gb_audio()
 		// period
 		if ((gb_aud_nr43 & 0xF0) < 0xE0)
 		{
-			gb_ext_ch4_period += 8; 
+			gb_ext_ch4_period += 4; // half the speed of pulse
 			
 			if (gb_ext_ch4_period >= gb_ext_ch4_divider)
 			{
 				gb_ext_ch4_period = 0;
 
-				gb_ext_ch4_divider = (unsigned long)(((gb_aud_nr43 & 0x07) << ((gb_aud_nr43 & 0xF0) >> 4)));
+				if ((gb_aud_nr43 & 0x07) == 0x00)
+				{
+					gb_ext_ch4_divider = (unsigned long)((0x01 << ((gb_aud_nr43 & 0xF0) >> 5)));
+				}
+				else
+				{
+					gb_ext_ch4_divider = (unsigned long)(((gb_aud_nr43 & 0x07) << ((gb_aud_nr43 & 0xF0) >> 4)));
+				}
 		
 				// using this instead of LFSR
 				if (gb_random_table[gb_ext_ch4_random] >= 0x80)
@@ -6036,11 +6051,11 @@ void gb_audio()
 		}
 
 		// length
-		if ((gb_aud_nr43 & 0x40) == 0x40)
+		if ((gb_aud_nr44 & 0x40) == 0x40)
 		{
 			gb_ext_ch4_length += 1;
 
-			if (gb_ext_ch4_length >= 32768) // 64 << 17
+			if (gb_ext_ch4_length >= 8192) // 64 << 7
 			{
 				gb_aud_nr52 = (unsigned char)(gb_aud_nr52 & 0xF7); // disable channel 4
 			}
@@ -6061,6 +6076,8 @@ void gb_audio()
 					{
 						gb_ext_ch4_volume += 1; // increase volume
 					}
+
+					//gb_ext_ch4_volume = (unsigned long)((gb_ext_ch4_volume + 1) & 0x0F);
 				}
 				else
 				{
@@ -6068,6 +6085,8 @@ void gb_audio()
 					{
 						gb_ext_ch4_volume -= 1; // decrease volume
 					}
+
+					//gb_ext_ch4_volume = (unsigned long)((gb_ext_ch4_volume - 1) & 0x0F);
 				}
 			}
 		}
@@ -6078,11 +6097,11 @@ void gb_audio()
 	}
 
 	// mixer/panning
-	gb_game_audio_buffer[gb_game_audio_write] =
-		(unsigned short)(gb_ext_ch1_value * gb_ext_ch1_volume * (((gb_aud_nr51 & 0x10) >> 4) + ((gb_aud_nr51 & 0x01)))) +
-		(unsigned short)(gb_ext_ch2_value * gb_ext_ch2_volume * (((gb_aud_nr51 & 0x20) >> 5) + ((gb_aud_nr51 & 0x02) >> 1))) +
-		(unsigned short)(gb_ext_ch3_value * gb_ext_ch3_volume * (((gb_aud_nr51 & 0x40) >> 6) + ((gb_aud_nr51 & 0x04) >> 2))) +
-		(unsigned short)(gb_ext_ch4_value * gb_ext_ch4_volume * (((gb_aud_nr51 & 0x80) >> 7) + ((gb_aud_nr51 & 0x08) >> 3)));
+	gb_game_audio_buffer[gb_game_audio_write] = 0x0000;
+	gb_game_audio_buffer[gb_game_audio_write] += (unsigned short)(gb_ext_ch1_value * gb_ext_ch1_volume * (((gb_aud_nr51 & 0x10) >> 4) + ((gb_aud_nr51 & 0x01))));
+	gb_game_audio_buffer[gb_game_audio_write] += (unsigned short)(gb_ext_ch2_value * gb_ext_ch2_volume * (((gb_aud_nr51 & 0x20) >> 5) + ((gb_aud_nr51 & 0x02) >> 1)));
+	gb_game_audio_buffer[gb_game_audio_write] += (unsigned short)(gb_ext_ch3_value * gb_ext_ch3_volume * (((gb_aud_nr51 & 0x40) >> 6) + ((gb_aud_nr51 & 0x04) >> 2)));
+	gb_game_audio_buffer[gb_game_audio_write] += (unsigned short)(gb_ext_ch4_value * gb_ext_ch4_volume * (((gb_aud_nr51 & 0x80) >> 7) + ((gb_aud_nr51 & 0x08) >> 3)));
 
 	// master volume
 	gb_game_audio_buffer[gb_game_audio_write] = gb_game_audio_buffer[gb_game_audio_write] / (16 - (((gb_aud_nr50 & 0x70) >> 4) + (gb_aud_nr50 & 0x07)));
@@ -6418,7 +6437,7 @@ void openal_play()
 {
 	if (openal_enable == 0) return;
 
-	for (int i=0; i<AUDIO_LEN; i++) openal_data[i] = (unsigned short)(gb_game_audio_buffer[i]); // unsigned
+	for (int i=0; i<gb_game_audio_write; i++) openal_data[i] = (unsigned short)(gb_game_audio_buffer[i]); // unsigned
 
 	alGenBuffers(1, &openal_buffer);
 	alBufferData(openal_buffer, AL_FORMAT_MONO16, openal_data, 1098, 32768); // calculation: 70224 / 128 * 2 = 1097.25
