@@ -18,6 +18,7 @@ As of now, it is a full DMG emulator with audio included, for No-MBC, MBC1, MBC3
 <b>Images:</b><br>
 <table>
   <tr><td><table><tr><td><img src="Images/Tetris.png"></td></tr><tr><td align="center"><b>Tetris</b></td></tr></table></td>
-    <td><img src="Images/ExpPak.png"></td></tr>
-  <tr><td><img src="Images/ZeldaDX.png"></td><td><img src="Images/TobuDX.png"></td></tr>
+    <td><table><tr><td><img src="Images/ExpPak.png"></td></tr><tr><td align="center"><b>Kanto Expansion Pak</b></td></tr></table></td></tr>
+  <tr><td><table><tr><td><img src="Images/ZeldaDX.png"></td></tr><tr><td align="center"><b>Zelda: Link's Awakening DX</b></td></tr></table></td>
+    <td><table><tr><td><img src="Images/TobuDX.png"></td></tr><tr><td align="center"><b>Tobu Tobu Girl DX</b></td></tr></table></td></tr>
 </table>
