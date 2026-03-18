@@ -711,6 +711,7 @@ int gb_initialize()
 		default:
 		{
 			gb_cart_mask_ram = 0x00;
+			supported = 0; // other sizes not supported
 		}
 	}
 
