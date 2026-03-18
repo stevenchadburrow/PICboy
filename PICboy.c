@@ -15,7 +15,7 @@
 // Public Domain, Mar 2026
 
 // change to 0 or 1
-#define AUDIO_ENABLE 1
+#define AUDIO_ENABLE 0
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -67,6 +67,12 @@ unsigned long gb_game_clock = 0;
 
 // variables for gameboy specific emulation
 
+#define UNK 0
+#define DMG 1
+#define GBC 2
+
+unsigned long gb_mode = UNK; // unknown to use DMG or GBC as default
+
 // random number table for noise, etc
 unsigned char gb_random_table[256] = {
 	0xBF,0xA9,0x14,0xD5,0x98,0x52,0x4E,0x56,0xAB,0x80,0xEF,0x3C,0x3F,0x97,0x89,0x35,
@@ -87,9 +93,17 @@ unsigned char gb_random_table[256] = {
 	0x66,0x08,0x36,0xBE,0x40,0x46,0x48,0x2E,0x0F,0x8B,0x61,0x0C,0xCA,0x81,0xC8,0x57
 };
 
-// white, light grey, dark grey, black
-unsigned short gb_master_palette[4] = {
-	0x7FFF, 0x3DEF, 0x2108, 0x0000
+unsigned short gb_palette_master[16] = {
+	0x7FFF, 0x3D3F, 0x2108, 0x0000, // grey-scale
+	0x7FFF, 0x7E10, 0x48E7, 0x0000, // red-scale
+	0x7FFF, 0x3FE6, 0x0200, 0x0000, // green-scale
+	0x7FFF, 0x329F, 0x001F, 0x0000 // blue-scale
+};
+
+unsigned short gb_palette_defined[12] = {
+	0x7FFF, 0x3DEF, 0x2108, 0x0000, // bgp
+	0x7FFF, 0x3DEF, 0x2108, 0x0000, // obp0
+	0x7FFF, 0x3DEF, 0x2108, 0x0000 // obp1
 };
 
 // memory arrays
@@ -697,6 +711,23 @@ void gb_initialize()
 	gb_cart_bank_rom = 1;
 	gb_cart_bank_ram = 0;
 	gb_cart_enable_ram = 0;
+
+	// if unknown mode by default
+	if (gb_mode == UNK)
+	{
+		if (gb_mem_rom[0x0143] == 0xC0) // GBC only
+		{
+			gb_mode = GBC;
+		}
+		else if (gb_mem_rom[0x0143] == 0x80) // GBC or DMG
+		{
+			gb_mode = GBC;
+		}
+		else // usually 0x00, DMG only
+		{
+			gb_mode = DMG;
+		}
+	}
 
 	for (unsigned short i=0; i<8192; i++) gb_mem_vram[i] = 0x00;
 
@@ -5461,7 +5492,7 @@ void gb_line()
 	// disabled
 	if ((gb_io_lcdc & 0x80) == 0x00) return;
 
-	unsigned long loc, start, end, tile, left, right, shift, pos, pal, val, color;
+	unsigned long loc, start, end, tile, left, right, shift, pos, pal, val, color, obj;
 	signed int spr;
 	unsigned short pri_enable, pri_value;
 	
@@ -5572,8 +5603,16 @@ void gb_line()
 
 					tile = (gb_mem_oam[i+2] << 4);
 
-					if ((gb_mem_oam[i+3] & 0x10) == 0x00) loc = gb_io_obp0;
-					else loc = gb_io_obp1;
+					if ((gb_mem_oam[i+3] & 0x10) == 0x00)
+					{
+						loc = gb_io_obp0;
+						obj = 0x04;
+					}
+					else
+					{
+						loc = gb_io_obp1;
+						obj = 0x08;
+					}
 
 					switch ((gb_mem_oam[i+3] & 0x60))
 					{
@@ -5600,7 +5639,7 @@ void gb_line()
 										if (pri_enable == 0 || gb_game_screen_buffer[pos] == pri_value)
 										{
 											// pre-palette
-											gb_game_screen_buffer[pos] = val;
+											gb_game_screen_buffer[pos] = (val | obj);
 										}
 									}
 								}
@@ -5634,7 +5673,7 @@ void gb_line()
 										if (pri_enable == 0 || gb_game_screen_buffer[pos] == pri_value)
 										{
 											// pre-palette
-											gb_game_screen_buffer[pos] = val;
+											gb_game_screen_buffer[pos] = (val | obj);
 										}
 									}
 								}
@@ -5668,7 +5707,7 @@ void gb_line()
 										if (pri_enable == 0 || gb_game_screen_buffer[pos] == pri_value)
 										{
 											// pre-palette
-											gb_game_screen_buffer[pos] = val;
+											gb_game_screen_buffer[pos] = (val | obj);
 										}
 									}
 								}
@@ -5702,7 +5741,7 @@ void gb_line()
 										if (pri_enable == 0 || gb_game_screen_buffer[pos] == pri_value)
 										{
 											// pre-palette
-											gb_game_screen_buffer[pos] = val;
+											gb_game_screen_buffer[pos] = (val | obj);
 										}
 									}
 								}
@@ -5737,8 +5776,16 @@ void gb_line()
 
 					tile = (gb_mem_oam[i+2] << 4);
 
-					if ((gb_mem_oam[i+3] & 0x10) == 0x00) loc = gb_io_obp0;
-					else loc = gb_io_obp1;
+					if ((gb_mem_oam[i+3] & 0x10) == 0x00)
+					{
+						loc = gb_io_obp0;
+						obj = 0x04;
+					}
+					else
+					{
+						loc = gb_io_obp1;
+						obj = 0x08;
+					}
 
 					switch ((gb_mem_oam[i+3] & 0x60))
 					{
@@ -5765,7 +5812,7 @@ void gb_line()
 										if (pri_enable == 0 || gb_game_screen_buffer[pos] == pri_value)
 										{
 											// pre-palette
-											gb_game_screen_buffer[pos] = val;
+											gb_game_screen_buffer[pos] = (val | obj);
 										}
 									}
 								}
@@ -5799,7 +5846,7 @@ void gb_line()
 										if (pri_enable == 0 || gb_game_screen_buffer[pos] == pri_value)
 										{
 											// pre-palette
-											gb_game_screen_buffer[pos] = val;
+											gb_game_screen_buffer[pos] = (val | obj);
 										}
 									}
 								}
@@ -5833,7 +5880,7 @@ void gb_line()
 										if (pri_enable == 0 || gb_game_screen_buffer[pos] == pri_value)
 										{
 											// pre-palette
-											gb_game_screen_buffer[pos] = val;
+											gb_game_screen_buffer[pos] = (val | obj);
 										}
 									}
 								}
@@ -5867,7 +5914,7 @@ void gb_line()
 										if (pri_enable == 0 || gb_game_screen_buffer[pos] == pri_value)
 										{
 											// pre-palette
-											gb_game_screen_buffer[pos] = val;
+											gb_game_screen_buffer[pos] = (val | obj);
 										}
 									}
 								}
@@ -5887,7 +5934,7 @@ void gb_line()
 	// replace with palette	
 	for (int i=0; i<160; i++)
 	{
-		gb_game_screen_buffer[line + i] = gb_master_palette[gb_game_screen_buffer[line + i]];
+		gb_game_screen_buffer[line + i] = gb_palette_defined[gb_game_screen_buffer[line + i]];
 	}
 }
 
@@ -6609,7 +6656,7 @@ int main(const int argc, const char **argv)
 	printf("\tIU = Turbo-AB\n");
 	printf("\tLO = FastForward/Freeze\n");
 	printf("\tB = Save RAM file\n");
-	printf("Arguments: <ROM file> [RAM file]\n");
+	printf("Arguments: <ROM file> [RAM file] [GBC|DMG|RGB|...]\n");
 
 	if (argc < 2)
 	{
@@ -6655,6 +6702,66 @@ int main(const int argc, const char **argv)
 
 	printf("ROM Size: %lu\n", loc);
 
+	if (argc >= 3)
+	{
+		gb_load(argv[2]); // load RAM file
+	}
+
+	if (argc >= 4)
+	{
+		if (argv[3][0] == 'G' &&
+			argv[3][1] == 'B' &&
+			argv[3][2] == 'C')
+		{
+			gb_mode = GBC; // Gameboy Color mode
+		}
+		else if (argv[3][0] == 'D' &&
+			argv[3][1] == 'M' &&
+			argv[3][2] == 'G')
+		{
+			gb_mode = DMG; // Original DMG mode
+		}
+		else
+		{
+			gb_mode = DMG; // defaulting to Original DMG mode when doing color palettes
+
+			int pal;
+
+			// background/window palette
+			pal = 0;
+			if (argv[3][0] == 'R') { pal = 4; }
+			else if (argv[3][0] == 'G') { pal = 8; }
+			else if (argv[3][0] == 'B') { pal = 12; }
+
+			for (int i=0; i<4; i++)
+			{
+				gb_palette_defined[i] = gb_palette_master[pal+i];
+			}
+
+			// object palette 0
+			pal = 0;
+			if (argv[3][1] == 'R') { pal = 4; }
+			else if (argv[3][1] == 'G') { pal = 8; }
+			else if (argv[3][1] == 'B') { pal = 12; }
+
+			for (int i=0; i<4; i++)
+			{
+				gb_palette_defined[i+4] = gb_palette_master[pal+i];
+			}
+
+			// object palette 1
+			pal = 0;
+			if (argv[3][2] == 'R') { pal = 4; }
+			else if (argv[3][2] == 'G') { pal = 8; }
+			else if (argv[3][2] == 'B') { pal = 12; }
+
+			for (int i=0; i<4; i++)
+			{
+				gb_palette_defined[i+8] = gb_palette_master[pal+i];
+			}
+		}
+	}		
+
 	gb_initialize();
 
 	if (gb_cart_mbc != 0xFF)
@@ -6666,11 +6773,6 @@ int main(const int argc, const char **argv)
 		printf("Unsupported Cart ROM\n");
 
 		return 0;
-	}
-
-	if (argc >= 3)
-	{
-		gb_load(argv[2]); // load RAM file
 	}
 
 	for (unsigned long i=0; i<SCREEN_X*SCREEN_Y; i++)
