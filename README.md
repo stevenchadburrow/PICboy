@@ -18,6 +18,7 @@ As of now, it is a full DMG emulator with audio included, for No-MBC, MBC1, MBC2
 - <a href="https://gbdev.gg8.se/wiki/articles/Main_Page">https://gbdev.gg8.se/wiki/articles/Main_Page</a>
 - <a href="https://gekkio.fi/files/gb-docs/gbctr.pdf">https://gekkio.fi/files/gb-docs/gbctr.pdf</a>
 - <a href="https://mgba-emu.github.io/gbdoc/">https://mgba-emu.github.io/gbdoc/</a>
+- <a href="https://tcrf.net/Notes:Game_Boy_Color_Bootstrap_ROM">https://tcrf.net/Notes:Game_Boy_Color_Bootstrap_ROM</a>
 
 
 <b>Images:</b><br>
