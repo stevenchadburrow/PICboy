@@ -11,6 +11,7 @@ As of now, it is a full DMG emulator with audio included, for No-MBC, MBC1, MBC2
 - Cart RAM Save/Load<br>
 - Turbo A/B Buttons<br>
 - Fast-Forward and Freeze<br>
+- Adjustable Color Palettes<br>
 
 <b>Resources:</b><br>
 - <a href="https://gbdev.io/pandocs/About.html">https://gbdev.io/pandocs/About.html</a>
@@ -18,14 +19,12 @@ As of now, it is a full DMG emulator with audio included, for No-MBC, MBC1, MBC2
 - <a href="https://gekkio.fi/files/gb-docs/gbctr.pdf">https://gekkio.fi/files/gb-docs/gbctr.pdf</a>
 - <a href="https://mgba-emu.github.io/gbdoc/">https://mgba-emu.github.io/gbdoc/</a>
 
-
-
 <b>Images:</b><br>
 <table>
   <tr><td><table><tr><td><img src="Images/Tetris.png"></td></tr><tr><td align="center"><b>Tetris</b></td></tr></table></td>
     <td><table><tr><td><img src="Images/ExpPak.png"></td></tr><tr><td align="center"><b>Kanto Expansion Pak</b></td></tr></table></td></tr>
   <tr><td><table><tr><td><img src="Images/F1Race.png"></td></tr><tr><td align="center"><b>F-1 Race</b></td></tr></table></td>
-    <td><table><tr><td><img src="Images/MarioLand.png"></td></tr><tr><td align="center"><b>Super Mario Land</b></td></tr></table></td></tr>
-  <tr><td><table><tr><td><img src="Images/ZeldaDX.png"></td></tr><tr><td align="center"><b>Link's Awakening DX</b></td></tr></table></td>
+    <td><table><tr><td><img src="Images/ZeldaDX.png"></td></tr><tr><td align="center"><b>Link's Awakening DX</b></td></tr></table></td></tr>
+  <tr><td><table><tr><td><img src="Images/BalloonKid.png"></td></tr><tr><td align="center"><b>Balloon Kid</b></td></tr></table></td>
     <td><table><tr><td><img src="Images/TobuDX.png"></td></tr><tr><td align="center"><b>Tobu Tobu Girl DX</b></td></tr></table></td></tr>
 </table>
