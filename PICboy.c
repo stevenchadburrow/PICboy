@@ -23,7 +23,7 @@
 
 #define SCREEN_X 160
 #define SCREEN_Y 144
-#define SCREEN_Z 2 // scale for OpenGL
+#define SCREEN_Z 3 // scale for OpenGL
 #define AUDIO_LEN 2048 // at least 1098
 
 // uses OpenGL for graphics and keyboard
@@ -6964,6 +6964,7 @@ int main(const int argc, const char **argv)
 
 			if (gb_game_buttons_saving > 0)
 			{
+				gb_game_buttons_freeze_hold = 3;
 				gb_game_buttons_freeze_state = 1;
 			}
 		}
