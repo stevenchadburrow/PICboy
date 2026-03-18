@@ -15,7 +15,7 @@
 // Public Domain, Mar 2026
 
 // change to 0 or 1
-#define AUDIO_ENABLE 0
+#define AUDIO_ENABLE 1
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -58,17 +58,12 @@ unsigned char gb_game_buttons_turbo_a = 0;
 unsigned char gb_game_buttons_turbo_b = 0;
 unsigned char gb_game_buttons_turbo_timer = 0;
 unsigned char gb_game_buttons_fast_forward = 0;
-unsigned char gb_game_buttons_freeze = 0;
+unsigned char gb_game_buttons_freeze_state = 0;
+unsigned char gb_game_buttons_freeze_hold = 0;
+unsigned char gb_game_buttons_saving = 0;
 unsigned char gb_game_run = 1;
 unsigned char gb_game_draw = 0;
 unsigned long gb_game_clock = 0;
-
-// waiting for proper timing
-void gb_game_wait()
-{
-	while (clock() < gb_game_clock + 16742) { } // for 59.73 Hz
-	gb_game_clock = clock();	
-}
 
 // variables for gameboy specific emulation
 
@@ -276,6 +271,59 @@ unsigned long gb_ext_ch4_volume = 0;
 unsigned long gb_ext_ch4_envelope = 0;
 unsigned long gb_ext_ch4_value = 0;
 unsigned long gb_ext_ch4_random = 0;
+
+// waiting for proper timing
+void gb_wait()
+{
+	while (clock() < gb_game_clock + 16742) { } // for 59.73 Hz
+	gb_game_clock = clock();	
+}
+
+// cart RAM save function
+int gb_save(const char *filename)
+{
+	FILE *f = NULL;
+
+	f = fopen(filename, "wb");
+	if (!f)
+	{
+		printf("Error writing to save file!\n");
+		return 0;
+	}
+
+	// 32KB cart RAM, change later if need be
+	for (int i=0; i<32768; i++)
+	{
+		fprintf(f, "%c", gb_mem_eram[i]);
+	}
+
+	fclose(f);
+
+	return 1;
+}
+
+// cart RAM load function
+int gb_load(const char *filename)
+{
+	FILE *f = NULL;
+
+	f = fopen(filename, "rb");
+	if (!f)
+	{
+		printf("Error reading from load file!\n");
+		return 0;
+	}
+
+	// 32KB cart RAM, change later if need be
+	for (int i=0; i<32768; i++)
+	{
+		fscanf(f, "%c", &gb_mem_eram[i]);
+	}
+
+	fclose(f);
+
+	return 1;
+}
 
 // read, write, and step
 #define gb_def_read_8(A, B) { \
@@ -566,6 +614,11 @@ void gb_initialize()
 	{
 		gb_cart_mbc = 0x01; // mbc1
 	}
+	else if (gb_cart_type == 0x05 ||
+		gb_cart_type == 0x06)
+	{
+		gb_cart_mbc = 0x02; // mbc2
+	}
 	else if (gb_cart_type == 0x0F ||
 		gb_cart_type == 0x10 ||
 		gb_cart_type == 0x11 ||
@@ -636,6 +689,15 @@ void gb_initialize()
 	gb_cart_mask_ram = (gb_cart_mask_ram << 12);
 	gb_cart_mask_ram = (gb_cart_mask_ram | 0x00001FFF);
 
+	if (gb_cart_mbc == 0x02)
+	{
+		gb_cart_mask_ram = 0x01FF; // 512 bytes of RAM
+	}
+
+	gb_cart_bank_rom = 1;
+	gb_cart_bank_ram = 0;
+	gb_cart_enable_ram = 0;
+
 	for (unsigned short i=0; i<8192; i++) gb_mem_vram[i] = 0x00;
 
 	gb_ext_lx = 0;
@@ -672,6 +734,11 @@ unsigned char gb_read(unsigned short addr)
 
 				break;	
 			}
+			case 0x02:
+			{
+				return gb_mem_rom[addr];
+				break;
+			}
 			case 0x03:
 			{
 				return gb_mem_rom[addr];
@@ -706,6 +773,15 @@ unsigned char gb_read(unsigned short addr)
 				return gb_mem_rom[gb_cart_bank_addr];		
 
 				break;	
+			}
+			case 0x02:
+			{
+				gb_cart_bank_addr = (gb_cart_bank_rom << 14) | (addr & 0x3FFF);
+				gb_cart_bank_addr = (gb_cart_bank_addr & gb_cart_mask_rom);
+
+				return gb_mem_rom[gb_cart_bank_addr];
+
+				break;
 			}
 			case 0x03:
 			{
@@ -760,6 +836,19 @@ unsigned char gb_read(unsigned short addr)
 
 						return gb_mem_eram[gb_cart_bank_addr];
 					}
+				}
+				else
+				{
+					return 0xFF;
+				}		
+
+				break;	
+			}
+			case 0x02:
+			{
+				if (gb_cart_enable_ram > 0)
+				{
+					return gb_mem_eram[addr-0xA000];
 				}
 				else
 				{
@@ -1136,6 +1225,31 @@ void gb_write(unsigned short addr, unsigned char val)
 
 				break;
 			}
+			case 0x02:
+			{
+				if ((addr & 0x0100) == 0x0000)
+				{
+					if ((val & 0x0F) == 0x0A)
+					{
+						gb_cart_enable_ram = 1;
+					}
+					else
+					{
+						gb_cart_enable_ram = 0;
+					}
+				}
+				else
+				{
+					gb_cart_bank_rom = (unsigned char)(val & 0x0F);
+		
+					if ((gb_cart_bank_rom & gb_cart_mask_rom) == 0x00)
+					{
+						gb_cart_bank_rom = 0x01;
+					}
+				}
+
+				break;
+			}
 			case 0x03:
 			{
 				if (addr < 0x2000)
@@ -1206,6 +1320,10 @@ void gb_write(unsigned short addr, unsigned char val)
 					gb_cart_bank_mode = (unsigned char)(val & 0x01);
 				}
 
+				break;
+			}
+			case 0x02:
+			{
 				break;
 			}
 			case 0x03:
@@ -6490,10 +6608,12 @@ int main(const int argc, const char **argv)
 	printf("\tENTER = Start\n");
 	printf("\tIU = Turbo-AB\n");
 	printf("\tLO = FastForward/Freeze\n");
+	printf("\tB = Save RAM file\n");
+	printf("Arguments: <ROM file> [RAM file]\n");
 
 	if (argc < 2)
 	{
-		printf("Arguments: <ROM file>\n");
+		printf("Needs ROM file!\n");
 	
 		return 0;
 	}
@@ -6544,6 +6664,13 @@ int main(const int argc, const char **argv)
 	else
 	{
 		printf("Unsupported Cart ROM\n");
+
+		return 0;
+	}
+
+	if (argc >= 3)
+	{
+		gb_load(argv[2]); // load RAM file
 	}
 
 	for (unsigned long i=0; i<SCREEN_X*SCREEN_Y; i++)
@@ -6568,7 +6695,7 @@ int main(const int argc, const char **argv)
 	{ 
 		if (glfwWindowShouldClose(opengl_window)) gb_game_run = 0; // makes ESCAPE exit program
 
-		if (gb_game_buttons_freeze == 0)
+		if (gb_game_buttons_freeze_state == 0)
 		{
 			gb_run();
 			gb_updates();
@@ -6585,7 +6712,7 @@ int main(const int argc, const char **argv)
 
 			if (gb_game_buttons_fast_forward == 0)
 			{
-				gb_game_wait();
+				gb_wait();
 
 				openal_play();
 			}
@@ -6649,8 +6776,32 @@ int main(const int argc, const char **argv)
 			if (opengl_keyboard_state[GLFW_KEY_L] == 0) gb_game_buttons_fast_forward = 0; // fast-forward
 			else gb_game_buttons_fast_forward = 1;
 
-			if (opengl_keyboard_state[GLFW_KEY_O] == 0) gb_game_buttons_freeze = 0; // freeze
-			else gb_game_buttons_freeze = 1;
+			if (opengl_keyboard_state[GLFW_KEY_O] > 0) // freeze
+			{
+				if (gb_game_buttons_freeze_hold == 2)
+				{
+					gb_game_buttons_freeze_hold = 3;
+					gb_game_buttons_freeze_state = 1;
+				}
+				else if (gb_game_buttons_freeze_hold == 0)
+				{
+					gb_game_buttons_freeze_hold = 1;
+					gb_game_buttons_freeze_state = 1;
+				}
+			}					
+			else
+			{
+				if (gb_game_buttons_freeze_hold == 1)
+				{
+					gb_game_buttons_freeze_hold = 2;
+					gb_game_buttons_freeze_state = 1;
+				}
+				else if (gb_game_buttons_freeze_hold == 3)
+				{
+					gb_game_buttons_freeze_hold = 0;
+					gb_game_buttons_freeze_state = 0;
+				}
+			}
 
 			if (opengl_keyboard_state[GLFW_KEY_I] == 0) gb_game_buttons_turbo_a = 0; // turbo A
 			else gb_game_buttons_turbo_a = 1;
@@ -6666,6 +6817,32 @@ int main(const int argc, const char **argv)
 
 				if (gb_game_buttons_turbo_a > 0) gb_game_buttons_current = (unsigned char)(gb_game_buttons_current ^ 0x01); // toggle A
 				if (gb_game_buttons_turbo_b > 0) gb_game_buttons_current = (unsigned char)(gb_game_buttons_current ^ 0x02); // toggle B
+			}
+
+			if (opengl_keyboard_state[GLFW_KEY_B] > 0)
+			{
+				if (gb_game_buttons_saving == 0)
+				{
+					gb_game_buttons_saving = 1;
+
+					if (argc >= 3)
+					{
+						gb_save(argv[2]); // from arguments
+					}
+					else
+					{
+						gb_save("SaveFile.bin"); // default name
+					}
+				}
+			}
+			else
+			{
+				gb_game_buttons_saving = 0;
+			}
+
+			if (gb_game_buttons_saving > 0)
+			{
+				gb_game_buttons_freeze_state = 1;
 			}
 		}
 	}
