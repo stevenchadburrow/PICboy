@@ -15,7 +15,7 @@
 // Public Domain, Mar 2026
 
 // change to 0 or 1
-#define AUDIO_ENABLE 0
+#define AUDIO_ENABLE 1
 
 #include <stdio.h>
 #include <stdlib.h>
