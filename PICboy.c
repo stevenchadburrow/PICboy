@@ -107,9 +107,9 @@ unsigned short gb_palette_defined[12] = {
 };
 
 // memory arrays
-unsigned char gb_mem_rom[4194304]; // bigger?
+unsigned char gb_mem_rom[4194304]; // 4MB max size
 unsigned char gb_mem_vram[16384];
-unsigned char gb_mem_eram[32768]; // bigger?
+unsigned char gb_mem_eram[32768]; // 32KB max size
 unsigned char gb_mem_wram[32768];
 unsigned char gb_mem_oam[160];
 unsigned char gb_mem_wave[16];
@@ -547,8 +547,10 @@ int gb_load(const char *filename)
 	gb_cpu_cycles += A; }
 
 // initial values after boot
-void gb_initialize()
+int gb_initialize()
 {
+	int supported = 1; 
+
 	gb_cpu_halt = 0x00;
 	gb_cpu_ime = 0x00;
 
@@ -653,15 +655,25 @@ void gb_initialize()
 	else
 	{
 		gb_cart_mbc = 0xFF; // other
+
+		supported = 0; // other carts not supported
 	}
 
-	if (gb_mem_rom[0x0148] <= 0x08)
+	if (gb_mem_rom[0x0148] <= 0x07)
 	{
 		gb_cart_mask_rom = (0x01 << (gb_mem_rom[0x0148]+2)) - 0x01;
+	}
+	else if (gb_mem_rom[0x0148] == 0x08)
+	{
+		gb_cart_mask_rom = 0x01;
+
+		supported = 0; // 8 MB ROM games not supported
 	}
 	else
 	{
 		gb_cart_mask_rom = 0x01;
+
+		supported = 0; // other sizes not supported
 	}
 
 	gb_cart_mask_rom = (gb_cart_mask_rom << 13);
@@ -686,12 +698,14 @@ void gb_initialize()
 		}
 		case 0x04:
 		{
-			gb_cart_mask_ram = 0x0F;
+			gb_cart_mask_ram = 0x00;
+			supported = 0; // 128 KB RAM games not supported
 			break;
 		}
 		case 0x05:
 		{
-			gb_cart_mask_ram = 0x07;
+			gb_cart_mask_ram = 0x00;
+			supported = 0; // 64 KB RAM games not supported
 			break;
 		}
 		default:
@@ -735,6 +749,8 @@ void gb_initialize()
 	gb_ext_halt = 0;
 	gb_ext_div_cycles = 0x00;
 	gb_ext_tima_cycles = 0x00;
+
+	return supported;
 }
 
 // read from memory
@@ -6762,7 +6778,10 @@ int main(const int argc, const char **argv)
 		}
 	}		
 
-	gb_initialize();
+	if (gb_initialize() == 0)
+	{
+		printf("Unsupported settings detected!\n");
+	}
 
 	if (gb_cart_mbc != 0xFF)
 	{
