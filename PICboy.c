@@ -6717,11 +6717,14 @@ int main(const int argc, const char **argv)
 
 	fclose(input);
 
-	printf("ROM Size: %lu\n", loc);
+	printf("Cart ROM Size: %lu\n", loc);
 
 	if (argc >= 3)
 	{
-		gb_load(argv[2]); // load RAM file
+		if (gb_load(argv[2]) > 0)
+		{
+			printf("Loaded Cart RAM from: %s\n", argv[2]);
+		}
 	}
 
 	if (argc >= 4)
@@ -6949,11 +6952,17 @@ int main(const int argc, const char **argv)
 
 					if (argc >= 3)
 					{
-						gb_save(argv[2]); // from arguments
+						if (gb_save(argv[2]) > 0)
+						{
+							printf("Saved Cart RAM to: %s\n", argv[2]);
+						}
 					}
 					else
 					{
-						gb_save("SaveFile.bin"); // default name
+						if (gb_save("SaveFile.bin") > 0)
+						{
+							printf("Saved Cart RAM to: SaveFile.bin\n");
+						}
 					}
 				}
 			}
