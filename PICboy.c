@@ -15,7 +15,7 @@
 // Public Domain, Mar 2026
 
 // change to 0 or 1
-#define AUDIO_ENABLE 0
+#define AUDIO_ENABLE 1
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -23,7 +23,7 @@
 
 #define SCREEN_X 160
 #define SCREEN_Y 144
-#define SCREEN_Z 3 // scale for OpenGL
+#define SCREEN_Z 2 // scale for OpenGL
 #define AUDIO_LEN 2048 // at least 1098
 
 // uses OpenGL for graphics and keyboard
@@ -1724,6 +1724,11 @@ void gb_write(unsigned short addr, unsigned char val)
 			case 0xFF1A: // NR30
 			{
 				gb_aud_nr30 = (unsigned char)val;
+
+				if ((gb_aud_nr30 & 0x80) == 0x00)
+				{
+					gb_aud_nr52 = (unsigned char)(gb_aud_nr52 & 0xFB); // disable channel 3
+				}
 
 				break;
 			}
@@ -5824,7 +5829,7 @@ void gb_line()
 	
 	unsigned long line = gb_io_ly * 160;
 
-	if (gb_mode == GBC)
+	if (gb_mode == GBC) // Gameboy Color mode
 	{
 		// background
 		loc = 0x1800 + (((gb_io_ly + gb_io_scy) & 0xF8) << 2);
@@ -5952,50 +5957,7 @@ void gb_line()
 				}
 			}
 		}
-	}
-	else
-	{
-		// background
-		loc = 0x1800 + (((gb_io_ly + gb_io_scy) & 0xF8) << 2);
 
-		if ((gb_io_lcdc & 0x08) == 0x08) loc += 0x0400;
-
-		start = ((gb_io_scx & 0xF8) >> 3);
-		end = start + 21;
-
-		for (unsigned long x=start; x<end; x++)
-		{
-			tile = (gb_mem_vram[loc + (x & 0x1F)] << 4);
-
-			if (tile < 2048 && (gb_io_lcdc & 0x10) == 0x00) tile += 0x1000;
-
-			tile += (((gb_io_ly + gb_io_scy) & 0x07) << 1);
-
-			left = gb_mem_vram[tile];
-			right = (gb_mem_vram[tile+1] << 1);
-			
-			for (signed long i=7; i>=0; i--)
-			{
-				shift = (x*8+i) - (gb_io_scx);
-				
-				if ((shift & 0x00FF) < 160)
-				{
-					pos = line + shift;
-					pal = ((((left & 0x01)) | ((right & 0x02))) << 1);
-					val = ((gb_io_bgp & (0x03 << pal)) >> pal);
-
-					// pre-palette
-					gb_game_screen_buffer[pos] = val;
-				}
-
-				left = (left >> 1);
-				right = (right >> 1);
-			}
-		}
-	}
-
-	if (gb_mode == GBC)
-	{
 		// window
 		if ((gb_io_lcdc & 0x20) == 0x20)
 		{
@@ -6128,56 +6090,7 @@ void gb_line()
 				}
 			}
 		}
-	}
-	else
-	{
-		// window
-		if ((gb_io_lcdc & 0x20) == 0x20)
-		{
-			if (gb_io_ly >= gb_io_wy && gb_io_ly < (gb_io_wy + 144))
-			{
-				loc = 0x1800 + (((gb_io_ly - gb_io_wy) & 0xF8) << 2);
 
-				if ((gb_io_lcdc & 0x40) == 0x40) loc += 0x0400;
-
-				start = 0;
-				end = 21;
-
-				for (unsigned long x=start; x<end; x++)
-				{
-					tile = (gb_mem_vram[loc + (x & 0x1F)] << 4);
-
-					if (tile < 2048 && (gb_io_lcdc & 0x10) == 0x00) tile += 0x1000;
-
-					tile += (((gb_io_ly - gb_io_wy) & 0x07) << 1);
-
-					left = gb_mem_vram[tile];
-					right = (gb_mem_vram[tile+1] << 1);
-					
-					for (signed int i=7; i>=0; i--)
-					{
-						shift = (x*8+i) + (gb_io_wx-7);
-						
-						if ((shift & 0x00FF) < 160)
-						{
-							pos = line + shift;
-							pal = ((((left & 0x01)) | ((right & 0x02))) << 1);
-							val = ((gb_io_bgp & (0x03 << pal)) >> pal);
-							
-							// pre-palette
-							gb_game_screen_buffer[pos] = val;
-						}
-
-						left = (left >> 1);
-						right = (right >> 1);
-					}
-				}
-			}
-		}
-	}
-
-	if (gb_mode == GBC)
-	{
 		// objects
 		if ((gb_io_lcdc & 0x02) == 0x02)
 		{
@@ -6500,9 +6413,99 @@ void gb_line()
 				}		
 			}
 		}
+
+		// replace with palette	
+		for (int i=0; i<160; i++)
+		{
+			gb_game_screen_buffer[line + i] = 
+				(unsigned short)(gb_mem_cram[(gb_game_screen_buffer[line + i] & 0x7F)+1] << 8) | 
+				(unsigned short)(gb_mem_cram[(gb_game_screen_buffer[line + i] & 0x7F)+0]);
+		}
 	}
-	else
+	else // Original DMG mode
 	{
+		// background
+		loc = 0x1800 + (((gb_io_ly + gb_io_scy) & 0xF8) << 2);
+
+		if ((gb_io_lcdc & 0x08) == 0x08) loc += 0x0400;
+
+		start = ((gb_io_scx & 0xF8) >> 3);
+		end = start + 21;
+
+		for (unsigned long x=start; x<end; x++)
+		{
+			tile = (gb_mem_vram[loc + (x & 0x1F)] << 4);
+
+			if (tile < 2048 && (gb_io_lcdc & 0x10) == 0x00) tile += 0x1000;
+
+			tile += (((gb_io_ly + gb_io_scy) & 0x07) << 1);
+
+			left = gb_mem_vram[tile];
+			right = (gb_mem_vram[tile+1] << 1);
+			
+			for (signed long i=7; i>=0; i--)
+			{
+				shift = (x*8+i) - (gb_io_scx);
+				
+				if ((shift & 0x00FF) < 160)
+				{
+					pos = line + shift;
+					pal = ((((left & 0x01)) | ((right & 0x02))) << 1);
+					val = ((gb_io_bgp & (0x03 << pal)) >> pal);
+
+					// pre-palette
+					gb_game_screen_buffer[pos] = val;
+				}
+
+				left = (left >> 1);
+				right = (right >> 1);
+			}
+		}
+
+		// window
+		if ((gb_io_lcdc & 0x20) == 0x20)
+		{
+			if (gb_io_ly >= gb_io_wy && gb_io_ly < (gb_io_wy + 144))
+			{
+				loc = 0x1800 + (((gb_io_ly - gb_io_wy) & 0xF8) << 2);
+
+				if ((gb_io_lcdc & 0x40) == 0x40) loc += 0x0400;
+
+				start = 0;
+				end = 21;
+
+				for (unsigned long x=start; x<end; x++)
+				{
+					tile = (gb_mem_vram[loc + (x & 0x1F)] << 4);
+
+					if (tile < 2048 && (gb_io_lcdc & 0x10) == 0x00) tile += 0x1000;
+
+					tile += (((gb_io_ly - gb_io_wy) & 0x07) << 1);
+
+					left = gb_mem_vram[tile];
+					right = (gb_mem_vram[tile+1] << 1);
+					
+					for (signed int i=7; i>=0; i--)
+					{
+						shift = (x*8+i) + (gb_io_wx-7);
+						
+						if ((shift & 0x00FF) < 160)
+						{
+							pos = line + shift;
+							pal = ((((left & 0x01)) | ((right & 0x02))) << 1);
+							val = ((gb_io_bgp & (0x03 << pal)) >> pal);
+							
+							// pre-palette
+							gb_game_screen_buffer[pos] = val;
+						}
+
+						left = (left >> 1);
+						right = (right >> 1);
+					}
+				}
+			}
+		}
+
 		// objects
 		if ((gb_io_lcdc & 0x02) == 0x02)
 		{
@@ -6853,20 +6856,7 @@ void gb_line()
 				}		
 			}
 		}
-	}
 
-	if (gb_mode == GBC)
-	{
-		// replace with palette	
-		for (int i=0; i<160; i++)
-		{
-			gb_game_screen_buffer[line + i] = 
-				(unsigned short)(gb_mem_cram[(gb_game_screen_buffer[line + i] & 0x7F)+1] << 8) | 
-				(unsigned short)(gb_mem_cram[(gb_game_screen_buffer[line + i] & 0x7F)+0]);
-		}
-	}
-	else
-	{
 		// replace with palette	
 		for (int i=0; i<160; i++)
 		{
@@ -7240,7 +7230,7 @@ void gb_updates()
 
 				gb_line();
 
-				gb_ext_hdma_hblank = 1;
+				if (gb_mode == GBC) gb_ext_hdma_hblank = 1;
 			}
 
 			gb_io_stat = ((gb_io_stat & 0xFC) | 0x00);
@@ -7381,13 +7371,13 @@ void gb_updates()
 	// clear cycles
 	gb_cpu_cycles = 0;
 
-	if (gb_ext_hdma_hblank > 0)
+	if (gb_mode == GBC)
 	{
-		gb_ext_hdma_hblank = 0;
-
-		// H-Blank DMA
-		if (gb_mode == GBC)
+		// H-Blank DMA (after clearing cycle count!)
+		if (gb_ext_hdma_hblank > 0)
 		{
+			gb_ext_hdma_hblank = 0;
+		
 			if ((gb_io_hdma5 & 0x80) == 0x80 && gb_io_hdma5 != 0xFF)
 			{
 				for (unsigned long i=gb_ext_hdma_position; i<gb_ext_hdma_position+0x10; i++)
@@ -7820,6 +7810,10 @@ int main(const int argc, const char **argv)
 			gb_run();
 			gb_updates();
 			gb_interrupts();
+
+			//printf("%02X:%04X\n", (unsigned int)gb_cart_bank_rom, (unsigned int)gb_reg_pc.r16);
+
+			//if (gb_cart_bank_rom == 0x39 && gb_reg_pc.r16 == 0x49C9) while (1) { }
 		}
 		else
 		{
