@@ -15,6 +15,7 @@ As of now, it is a full DMG emulator with audio included, for No-MBC, MBC1, MBC2
 
 <b>Resources:</b><br>
 - <a href="https://gbdev.io/pandocs/About.html">https://gbdev.io/pandocs/About.html</a>
+- <a href="https://gbdev.io/gb-opcodes/optables/">https://gbdev.io/gb-opcodes/optables/</a>
 - <a href="https://gbdev.gg8.se/wiki/articles/Main_Page">https://gbdev.gg8.se/wiki/articles/Main_Page</a>
 - <a href="https://gekkio.fi/files/gb-docs/gbctr.pdf">https://gekkio.fi/files/gb-docs/gbctr.pdf</a>
 - <a href="https://mgba-emu.github.io/gbdoc/">https://mgba-emu.github.io/gbdoc/</a>
