@@ -21,14 +21,13 @@ As of now, it is a full DMG emulator with audio included, for No-MBC, MBC1, MBC2
 - <a href="https://tcrf.net/Notes:Game_Boy_Color_Bootstrap_ROM">https://tcrf.net/Notes:Game_Boy_Color_Bootstrap_ROM</a>
 - <a href="https://github.com/catskull/gb-rom-database">https://github.com/catskull/gb-rom-database</a>
 
-
 <b>Images:</b><br>
 <table>
   <tr><td><table><tr><td><img src="Images/Tetris.png"></td></tr><tr><td align="center"><b>Tetris</b></td></tr></table></td>
     <td><table><tr><td><img src="Images/F1Race.png"></td></tr><tr><td align="center"><b>F-1 Race</b></td></tr></table></td></tr>
   <tr><td><table><tr><td><img src="Images/ExpPak.png"></td></tr><tr><td align="center"><b>Kanto Expansion Pak</b></td></tr></table></td>
-    <td><table><tr><td><img src="Images/ZeldaDX.png"></td></tr><tr><td align="center"><b>Link's Awakening DX</b></td></tr></table></td></tr>
-  <tr><td><table><tr><td><img src="Images/BalloonKid.png"></td></tr><tr><td align="center"><b>Balloon Kid</b></td></tr></table></td>
+    <td><table><tr><td><img src="Images/BalloonKid.png"></td></tr><tr><td align="center"><b>Balloon Kid</b></td></tr></table></td></tr>
+  <tr><td><table><tr><td><img src="Images/ZeldaDX.png"></td></tr><tr><td align="center"><b>Link's Awakening DX</b></td></tr></table></td>
     <td><table><tr><td><img src="Images/TobuDX.png"></td></tr><tr><td align="center"><b>Tobu Tobu Girl DX</b></td></tr></table></td></tr>
    <tr><td><table><tr><td><img src="Images/MarioDeluxe.png"></td></tr><tr><td align="center"><b>Super Mario Deluxe</b></td></tr></table></td>
     <td><table><tr><td><img src="Images/OracleOfSeasons.png"></td></tr><tr><td align="center"><b>Oracle of Seasons</b></td></tr></table></td></tr>
