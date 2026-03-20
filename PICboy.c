@@ -132,6 +132,7 @@ unsigned char gb_mem_hram[127];
 
 // gbc memory arrays
 unsigned char gb_mem_cram[128];
+unsigned char gb_mem_swap[128]; // cram but swapped red and blue
 
 // memory banks
 unsigned char gb_bank_vram = 0;
@@ -2081,14 +2082,16 @@ void gb_write(unsigned short addr, unsigned char val)
 				// swap red and blue
 				if ((gb_io_bcps & 0x01) == 0x00)
 				{
-					gb_mem_cram[((gb_io_bcps&0x3E))] = (unsigned char)((gb_mem_cram[((gb_io_bcps&0x3E))] & 0x1F) | ((val & 0xE0)));
-					gb_mem_cram[((gb_io_bcps&0x3E)|0x01)] = (unsigned char)((gb_mem_cram[((gb_io_bcps&0x3E)|0x01)] & 0x03) | ((val & 0x1F) << 2));
+					gb_mem_swap[((gb_io_bcps&0x3E))] = (unsigned char)((gb_mem_swap[((gb_io_bcps&0x3E))] & 0x1F) | ((val & 0xE0)));
+					gb_mem_swap[((gb_io_bcps&0x3E)|0x01)] = (unsigned char)((gb_mem_swap[((gb_io_bcps&0x3E)|0x01)] & 0x03) | ((val & 0x1F) << 2));
 				}
 				else
 				{
-					gb_mem_cram[((gb_io_bcps&0x3E))] = (unsigned char)((gb_mem_cram[((gb_io_bcps&0x3E))] & 0xE0) | ((val & 0x7C) >> 2));
-					gb_mem_cram[((gb_io_bcps&0x3E)|0x01)] = (unsigned char)((gb_mem_cram[((gb_io_bcps&0x3E)|0x01)] & 0x7C) | ((val & 0x03)));
+					gb_mem_swap[((gb_io_bcps&0x3E))] = (unsigned char)((gb_mem_swap[((gb_io_bcps&0x3E))] & 0xE0) | ((val & 0x7C) >> 2));
+					gb_mem_swap[((gb_io_bcps&0x3E)|0x01)] = (unsigned char)((gb_mem_swap[((gb_io_bcps&0x3E)|0x01)] & 0x7C) | ((val & 0x03)));
 				}
+
+				gb_mem_cram[(gb_io_bcps & 0x3F)] = (unsigned char)val;
 
 				if ((gb_io_bcps & 0x80) == 0x80)
 				{
@@ -2107,14 +2110,16 @@ void gb_write(unsigned short addr, unsigned char val)
 				// swap red and blue
 				if ((gb_io_ocps & 0x01) == 0x00)
 				{
-					gb_mem_cram[((gb_io_ocps&0x3E)|0x40)] = (unsigned char)((gb_mem_cram[((gb_io_ocps&0x3E)|0x40)] & 0x1F) | ((val & 0xE0)));
-					gb_mem_cram[((gb_io_ocps&0x3E)|0x41)] = (unsigned char)((gb_mem_cram[((gb_io_ocps&0x3E)|0x41)] & 0x03) | ((val & 0x1F) << 2));
+					gb_mem_swap[((gb_io_ocps&0x3E)|0x40)] = (unsigned char)((gb_mem_swap[((gb_io_ocps&0x3E)|0x40)] & 0x1F) | ((val & 0xE0)));
+					gb_mem_swap[((gb_io_ocps&0x3E)|0x41)] = (unsigned char)((gb_mem_swap[((gb_io_ocps&0x3E)|0x41)] & 0x03) | ((val & 0x1F) << 2));
 				}
 				else
 				{
-					gb_mem_cram[((gb_io_ocps&0x3E)|0x40)] = (unsigned char)((gb_mem_cram[((gb_io_ocps&0x3E)|0x40)] & 0xE0) | ((val & 0x7C) >> 2));
-					gb_mem_cram[((gb_io_ocps&0x3E)|0x41)] = (unsigned char)((gb_mem_cram[((gb_io_ocps&0x3E)|0x41)] & 0x7C) | ((val & 0x03)));
+					gb_mem_swap[((gb_io_ocps&0x3E)|0x40)] = (unsigned char)((gb_mem_swap[((gb_io_ocps&0x3E)|0x40)] & 0xE0) | ((val & 0x7C) >> 2));
+					gb_mem_swap[((gb_io_ocps&0x3E)|0x41)] = (unsigned char)((gb_mem_swap[((gb_io_ocps&0x3E)|0x41)] & 0x7C) | ((val & 0x03)));
 				}
+
+				gb_mem_cram[(gb_io_ocps & 0x3F)|0x40] = (unsigned char)val;
 
 				if ((gb_io_ocps & 0x80) == 0x80)
 				{
@@ -2154,8 +2159,6 @@ void gb_write(unsigned short addr, unsigned char val)
 	}
 }
 
-int debug_mode = 0;
-
 // runs next instruction
 void gb_run()
 {
@@ -2168,30 +2171,6 @@ void gb_run()
 
 	gb_def_read_8(gb_reg_pc.r16, gb_cpu_opcode);
 
-	if (debug_mode > 1) printf("%02X:%04X-%02X IME=%02X TIMA=%02X TMA=%02X TAC=%02X\n", 
-		(unsigned int)gb_cart_bank_rom, (unsigned int)gb_reg_pc.r16, (unsigned int)gb_cpu_opcode, (unsigned int)gb_cpu_ime,
-		(unsigned int)gb_io_tima, (unsigned int)gb_io_tma, (unsigned int)gb_io_tac);
-	
-	if (debug_mode > 0 && gb_reg_pc.r16 == 0x0050) debug_mode = 2;
-
-/*
-	if (gb_cart_bank_rom == 0xF0 && gb_reg_pc.r16 == 0x0687)
-	{
-		printf("%04X\n", gb_reg_sp.r16);
-
-		for (int i=0; i<16; i++)
-		{
-			for (int j=0; j<16; j++)
-			{
-				printf("%02X ", gb_read(0xCF00+i));
-			}
-
-			printf("\n");
-		}
-
-		while (1) { }
-	}
-*/
 	gb_def_step(gb_reg_pc.r16, 1);
 
 	// Unprefixed Codes
@@ -6447,8 +6426,8 @@ void gb_line()
 		for (int i=0; i<160; i++)
 		{
 			gb_game_screen_buffer[line + i] = 
-				(unsigned short)(gb_mem_cram[(gb_game_screen_buffer[line + i] & 0x7F)+1] << 8) | 
-				(unsigned short)(gb_mem_cram[(gb_game_screen_buffer[line + i] & 0x7F)+0]);
+				(unsigned short)(gb_mem_swap[(gb_game_screen_buffer[line + i] & 0x7F)+1] << 8) | 
+				(unsigned short)(gb_mem_swap[(gb_game_screen_buffer[line + i] & 0x7F)+0]);
 		}
 	}
 	else // Original DMG mode
@@ -7442,7 +7421,7 @@ void gb_updates()
 		}
 	}
 
-	// remove outdated interrupts
+	// remove outdated LCD/STAT interrupts
 	if ((gb_io_if & 0x02) == 0x02)
 	{
 		if ((gb_ext_stat_reason & 0x40) == 0x40 && (gb_io_stat & 0x44) != 0x44)
@@ -7465,7 +7444,7 @@ void gb_updates()
 			gb_ext_stat_reason &= 0xF7;
 		}
 
-		if (gb_ext_stat_reason == 0x00) gb_io_if &= 0xFD;
+		if (gb_ext_stat_reason == 0x00) gb_io_if &= 0xFD; // no interrupts
 	}
 		
 }
@@ -8036,8 +8015,6 @@ int main(const int argc, const char **argv)
 				gb_game_buttons_freeze_hold = 3;
 				gb_game_buttons_freeze_state = 1;
 			}
-
-			if (opengl_keyboard_state[GLFW_KEY_P] > 0) debug_mode = 1;
 		}
 	}
 
