@@ -32,6 +32,6 @@ As of now, it is a full DMG emulator with audio included, for No-MBC, MBC1, MBC2
     <td><table><tr><td><img src="Images/TobuDX.png"></td></tr><tr><td align="center"><b>Tobu Tobu Girl DX</b></td></tr></table></td></tr>
    <tr><td><table><tr><td><img src="Images/OracleOfSeasons.png"></td></tr><tr><td align="center"><b>Oracle of Seasons</b></td></tr></table></td>
     <td><table><tr><td><img src="Images/MarioDeluxe.png"></td></tr><tr><td align="center"><b>Super Mario Deluxe</b></td></tr></table></td></tr>
-  <tr><td><table><tr><td><img src="Images/CrystalClear1.png"></td></tr><tr><td align="center"><b>Crystal Clear Town</b></td></tr></table></td>
+  <tr><td><table><tr><td><img src="Images/CrystalClear1.png"></td></tr><tr><td align="center"><b>Crystal Clear World</b></td></tr></table></td>
     <td><table><tr><td><img src="Images/CrystalClear2.png"></td></tr><tr><td align="center"><b>Crystal Clear Battle</b></td></tr></table></td></tr>
 </table>
