@@ -5,7 +5,7 @@ This emulator is completely hand-made without any previous code used, though it 
 
 The principle is to keep this emulator in a single C file and have it as portable as possible to smaller devices.  It is also designed for speed over accuracy.  It uses OpenGL/GLFW and OpenAL as a basis for graphics and audio on desktop computers.  It was developed on Linux but should be portable to other systems with minimum or no effort at all.<br>
 
-As of now, it is a full DMG emulator with audio included, for No-MBC, MBC1, MBC2, MBC3, and MBC5 carts.  GBC additions are on-going.  It can now play Crystal Clear without any glitches!<br>
+As of now, it is a full DMG emulator with audio included, for No-MBC, MBC1, MBC2, MBC3, and MBC5 carts.  GBC additions are on-going.  Nearly all GBC changes are marked somehow.  It can now play Crystal Clear without any glitches!<br>
 
 <b>Features:</b><br>
 - Cart RAM Save/Load<br>
