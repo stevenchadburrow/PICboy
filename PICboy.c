@@ -1485,9 +1485,13 @@ void gb_write(unsigned short addr, unsigned char val)
 						gb_cart_enable_ram = 0;
 					}
 				}
-				else
+				else if (addr < 0x3000)
 				{
 					gb_cart_bank_rom = (unsigned short)((gb_cart_bank_rom & 0x0100) | (val & 0x00FF));
+				}
+				else
+				{
+					gb_cart_bank_rom = (unsigned short)((gb_cart_bank_rom & 0x00FF) | ((val & 0x0001) << 8));
 				}
 	
 				break;
@@ -1539,10 +1543,6 @@ void gb_write(unsigned short addr, unsigned char val)
 			case 0x05:
 			{
 				if (addr < 0x6000)
-				{
-					gb_cart_bank_rom = (unsigned short)((gb_cart_bank_rom & 0x00FF) | ((val & 0x0001) << 8));
-				}
-				else
 				{
 					gb_cart_bank_ram = (unsigned char)(val & 0x0F);
 				}
@@ -7810,10 +7810,6 @@ int main(const int argc, const char **argv)
 			gb_run();
 			gb_updates();
 			gb_interrupts();
-
-			//printf("%02X:%04X\n", (unsigned int)gb_cart_bank_rom, (unsigned int)gb_reg_pc.r16);
-
-			//if (gb_cart_bank_rom == 0x39 && gb_reg_pc.r16 == 0x49C9) while (1) { }
 		}
 		else
 		{
