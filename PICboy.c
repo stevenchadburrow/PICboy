@@ -15,7 +15,7 @@
 // Public Domain, Mar 2026
 
 // change to 0 or 1
-#define AUDIO_ENABLE 0
+#define AUDIO_ENABLE 1
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -23,7 +23,7 @@
 
 #define SCREEN_X 160
 #define SCREEN_Y 144
-#define SCREEN_Z 2 // scale for OpenGL
+#define SCREEN_Z 3 // scale for OpenGL
 #define AUDIO_LEN 2048 // at least 1098
 
 // uses OpenGL for graphics and keyboard
@@ -57,6 +57,7 @@ unsigned char gb_game_buttons_previous = 0;
 unsigned char gb_game_buttons_turbo_a = 0;
 unsigned char gb_game_buttons_turbo_b = 0;
 unsigned char gb_game_buttons_turbo_timer = 0;
+unsigned short gb_game_buttons_turbo_pattern = 0x7777; // binary shift register
 unsigned char gb_game_buttons_fast_forward = 0;
 unsigned char gb_game_buttons_freeze_state = 0;
 unsigned char gb_game_buttons_freeze_hold = 0;
@@ -2107,7 +2108,7 @@ void gb_write(unsigned short addr, unsigned char val)
 			}
 			case 0xFF6B: // OCPD
 			{
-				// swap red and blue
+				// swap red and blue for proper graphics
 				if ((gb_io_ocps & 0x01) == 0x00)
 				{
 					gb_mem_swap[((gb_io_ocps&0x3E)|0x40)] = (unsigned char)((gb_mem_swap[((gb_io_ocps&0x3E)|0x40)] & 0x1F) | ((val & 0xE0)));
@@ -2119,6 +2120,7 @@ void gb_write(unsigned short addr, unsigned char val)
 					gb_mem_swap[((gb_io_ocps&0x3E)|0x41)] = (unsigned char)((gb_mem_swap[((gb_io_ocps&0x3E)|0x41)] & 0x7C) | ((val & 0x03)));
 				}
 
+				// but keep the actual values in memory properly
 				gb_mem_cram[(gb_io_ocps & 0x3F)|0x40] = (unsigned char)val;
 
 				if ((gb_io_ocps & 0x80) == 0x80)
@@ -2170,6 +2172,11 @@ void gb_run()
 	}	
 
 	gb_def_read_8(gb_reg_pc.r16, gb_cpu_opcode);
+
+	// DEBUGGING
+	//printf("%02X:%04X-%02X A=%02X LCDC=%02X STAT=%02X\n", 
+	//	(unsigned int)gb_cart_bank_rom, (unsigned int)gb_reg_pc.r16, (unsigned int)gb_cpu_opcode, 
+	//	(unsigned int)gb_reg_af.r8.a, (unsigned int)gb_io_lcdc, (unsigned int)gb_io_stat);
 
 	gb_def_step(gb_reg_pc.r16, 1);
 
@@ -7186,7 +7193,7 @@ void gb_updates()
 		}
 	}
 
-	// lcd cycles
+	// lcd/stat cycles
 	gb_ext_lx += (gb_cpu_cycles >> gb_ext_speed_shift); // everything else can be twice as fast
 
 	if (gb_ext_lx >= 456) // horizontal max
@@ -7207,30 +7214,12 @@ void gb_updates()
 
 	if (gb_io_ly >= 144) // mode 1
 	{
-		if ((gb_io_stat & 0x03) != 0x01 && (gb_io_stat & 0x10) == 0x10)
-		{
-			if ((gb_io_lcdc & 0x80) == 0x80)
-			{
-				gb_io_if = (gb_io_if | 0x02); // interrupt
-				gb_ext_stat_reason |= 0x10;
-			}
-		}
-
 		gb_io_stat = ((gb_io_stat & 0xFC) | 0x01);
 	}
 	else
 	{
 		if (gb_ext_lx < 80) // mode 2
 		{
-			if ((gb_io_stat & 0x03) != 0x02 && (gb_io_stat & 0x20) == 0x20)
-			{
-				if ((gb_io_lcdc & 0x80) == 0x80)
-				{
-					gb_io_if = (gb_io_if | 0x02); // interrupt
-					gb_ext_stat_reason |= 0x20;
-				}
-			}
-
 			gb_io_stat = ((gb_io_stat & 0xFC) | 0x02);
 		}
 		else if (gb_ext_lx < 252) // mode 3
@@ -7241,15 +7230,6 @@ void gb_updates()
 		{
 			if ((gb_io_stat & 0x03) != 0x00)
 			{
-				if ((gb_io_stat & 0x08) == 0x08)
-				{
-					if ((gb_io_lcdc & 0x80) == 0x80)
-					{
-						gb_io_if = (gb_io_if | 0x02); // interrupt
-						gb_ext_stat_reason |= 0x08;
-					}
-				}
-
 				gb_line();
 
 				if (gb_mode == GBC) gb_ext_hdma_hblank = 1;
@@ -7259,30 +7239,47 @@ void gb_updates()
 		}
 	}
 
-	if ((gb_io_lcdc & 0x80) == 0x00) // keep at 0 when off
-	{
-		gb_ext_lx = 0;
-		gb_io_ly = 0;
-
-		gb_io_stat = ((gb_io_stat & 0xFC));
-	}
-
 	if (gb_io_ly == gb_io_lyc) // compare
 	{
-		if ((gb_io_stat & 0x40) == 0x40)
-		{
-			if ((gb_io_lcdc & 0x80) == 0x80)
-			{
-				gb_io_if = (gb_io_if | 0x02); // interrupt
-				gb_ext_stat_reason |= 0x40;
-			}
-		}
-
 		gb_io_stat = ((gb_io_stat & 0xFB) | 0x04);
 	}
 	else
 	{
 		gb_io_stat = ((gb_io_stat & 0xFB) | 0x00);
+	}
+
+	if ((gb_io_lcdc & 0x80) == 0x00) // keep at 0 when off
+	{
+		gb_ext_lx = 0;
+		gb_io_ly = 0;
+
+		gb_io_stat = ((gb_io_stat & 0xF8));
+	}
+
+	// lcd/stat interrupts
+	gb_io_if &= 0xFD;
+
+	if ((gb_io_lcdc & 0x80) == 0x80)
+	{
+		if ((gb_io_stat & 0x08) == 0x08 && (gb_io_stat & 0x03) == 0x00) // mode 0 interrupt
+		{
+			gb_io_if |= 0x02;
+		}
+
+		if ((gb_io_stat & 0x10) == 0x10 && (gb_io_stat & 0x03) == 0x01) // mode 1 interrupt
+		{
+			gb_io_if |= 0x02;
+		}
+
+		if ((gb_io_stat & 0x20) == 0x20 && (gb_io_stat & 0x03) == 0x02) // mode 2 interrupt
+		{
+			gb_io_if |= 0x02;
+		}
+
+		if ((gb_io_stat & 0x40) == 0x40 && (gb_io_stat & 0x04) == 0x04) // LY=LYC interrupt
+		{
+			gb_io_if |= 0x02;
+		}
 	}
 
 	// timer cycles
@@ -7420,33 +7417,6 @@ void gb_updates()
 			}
 		}
 	}
-
-	// remove outdated LCD/STAT interrupts
-	if ((gb_io_if & 0x02) == 0x02)
-	{
-		if ((gb_ext_stat_reason & 0x40) == 0x40 && (gb_io_stat & 0x44) != 0x44)
-		{
-			gb_ext_stat_reason &= 0xBF;
-		}
-		
-		if ((gb_ext_stat_reason & 0x20) == 0x20 && (gb_io_stat & 0x23) != 0x22)
-		{
-			gb_ext_stat_reason &= 0xDF;
-		}
-
-		if ((gb_ext_stat_reason & 0x10) == 0x10 && (gb_io_stat & 0x13) != 0x11)
-		{
-			gb_ext_stat_reason &= 0xEF;
-		}
-
-		if ((gb_ext_stat_reason & 0x08) == 0x08 && (gb_io_stat & 0x0B) != 0x80)
-		{
-			gb_ext_stat_reason &= 0xF7;
-		}
-
-		if (gb_ext_stat_reason == 0x00) gb_io_if &= 0xFD; // no interrupts
-	}
-		
 }
 
 // checks for interrupts 
@@ -7975,12 +7945,23 @@ int main(const int argc, const char **argv)
 
 			gb_game_buttons_turbo_timer += 1;
 
-			if (gb_game_buttons_turbo_timer >= 6) // 10 times per seconds
+			if (gb_game_buttons_turbo_timer >= 12) // 5 times per seconds
 			{
 				gb_game_buttons_turbo_timer = 0;
 
-				if (gb_game_buttons_turbo_a > 0) gb_game_buttons_current = (unsigned char)(gb_game_buttons_current ^ 0x01); // toggle A
-				if (gb_game_buttons_turbo_b > 0) gb_game_buttons_current = (unsigned char)(gb_game_buttons_current ^ 0x02); // toggle B
+				if ((gb_game_buttons_turbo_pattern & 0x0001) == 0x0000) // lift up
+				{
+					if (gb_game_buttons_turbo_a > 0) gb_game_buttons_current = (unsigned char)(gb_game_buttons_current & 0xFE); // A
+					if (gb_game_buttons_turbo_b > 0) gb_game_buttons_current = (unsigned char)(gb_game_buttons_current & 0xFD); // B
+				}
+				else // press down
+				{
+					if (gb_game_buttons_turbo_a > 0) gb_game_buttons_current = (unsigned char)(gb_game_buttons_current | 0x01); // A
+					if (gb_game_buttons_turbo_b > 0) gb_game_buttons_current = (unsigned char)(gb_game_buttons_current | 0x02); // B
+				}
+
+				// shift register
+				gb_game_buttons_turbo_pattern = ((gb_game_buttons_turbo_pattern >> 1) | ((gb_game_buttons_turbo_pattern & 0x01) << 15) & 0xFFFF);
 			}
 
 			if (opengl_keyboard_state[GLFW_KEY_B] > 0)
