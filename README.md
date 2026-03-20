@@ -11,7 +11,7 @@ As of now, it is a full DMG emulator with audio included, for No-MBC, MBC1, MBC2
 - Cart RAM Save/Load<br>
 - Turbo A/B Buttons<br>
 - Fast-Forward and Freeze<br>
-- Adjustable Color Palettes<br>
+- Adjustable Color Palettes<br> 
 
 <b>Resources:</b><br>
 - <a href="https://gbdev.io/pandocs/About.html">https://gbdev.io/pandocs/About.html</a>
