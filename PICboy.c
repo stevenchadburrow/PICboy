@@ -15,7 +15,7 @@
 // Public Domain, Mar 2026
 
 // change to 0 or 1
-#define AUDIO_ENABLE 1
+#define AUDIO_ENABLE 0
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -286,6 +286,7 @@ unsigned long gb_cart_bank_addr = 0;
 // extra registers
 unsigned long gb_ext_lx = 0;
 unsigned long gb_ext_halt = 0;
+unsigned long gb_ext_stat_reason = 0;
 unsigned long gb_ext_div_cycles = 0;
 unsigned long gb_ext_tima_cycles = 0;
 unsigned long gb_ext_sb_cycles = 0;
@@ -825,6 +826,8 @@ int gb_initialize()
 	gb_ext_halt = 0;
 	gb_ext_div_cycles = 0x00;
 	gb_ext_tima_cycles = 0x00;
+
+	gb_ext_speed_shift = 0x00;
 
 	return supported;
 }
@@ -2151,6 +2154,8 @@ void gb_write(unsigned short addr, unsigned char val)
 	}
 }
 
+int debug_mode = 0;
+
 // runs next instruction
 void gb_run()
 {
@@ -2163,6 +2168,30 @@ void gb_run()
 
 	gb_def_read_8(gb_reg_pc.r16, gb_cpu_opcode);
 
+	if (debug_mode > 1) printf("%02X:%04X-%02X IME=%02X TIMA=%02X TMA=%02X TAC=%02X\n", 
+		(unsigned int)gb_cart_bank_rom, (unsigned int)gb_reg_pc.r16, (unsigned int)gb_cpu_opcode, (unsigned int)gb_cpu_ime,
+		(unsigned int)gb_io_tima, (unsigned int)gb_io_tma, (unsigned int)gb_io_tac);
+	
+	if (debug_mode > 0 && gb_reg_pc.r16 == 0x0050) debug_mode = 2;
+
+/*
+	if (gb_cart_bank_rom == 0xF0 && gb_reg_pc.r16 == 0x0687)
+	{
+		printf("%04X\n", gb_reg_sp.r16);
+
+		for (int i=0; i<16; i++)
+		{
+			for (int j=0; j<16; j++)
+			{
+				printf("%02X ", gb_read(0xCF00+i));
+			}
+
+			printf("\n");
+		}
+
+		while (1) { }
+	}
+*/
 	gb_def_step(gb_reg_pc.r16, 1);
 
 	// Unprefixed Codes
@@ -7159,6 +7188,8 @@ void gb_audio()
 }
 
 // checks for things according to cycles taken
+// NEEDS TO TURN OFF PENDING INTERRUPTS THAT ARE NOT SERVICED AND NO LONGER RELIVANT
+// EXAMPLE: STAT 0x40 should never happen!
 void gb_updates()
 {
 	// serial cycles
@@ -7199,7 +7230,11 @@ void gb_updates()
 	{
 		if ((gb_io_stat & 0x03) != 0x01 && (gb_io_stat & 0x10) == 0x10)
 		{
-			if ((gb_io_lcdc & 0x80) == 0x80) gb_io_if = (gb_io_if | 0x02); // interrupt
+			if ((gb_io_lcdc & 0x80) == 0x80)
+			{
+				gb_io_if = (gb_io_if | 0x02); // interrupt
+				gb_ext_stat_reason |= 0x10;
+			}
 		}
 
 		gb_io_stat = ((gb_io_stat & 0xFC) | 0x01);
@@ -7210,7 +7245,11 @@ void gb_updates()
 		{
 			if ((gb_io_stat & 0x03) != 0x02 && (gb_io_stat & 0x20) == 0x20)
 			{
-				if ((gb_io_lcdc & 0x80) == 0x80) gb_io_if = (gb_io_if | 0x02); // interrupt
+				if ((gb_io_lcdc & 0x80) == 0x80)
+				{
+					gb_io_if = (gb_io_if | 0x02); // interrupt
+					gb_ext_stat_reason |= 0x20;
+				}
 			}
 
 			gb_io_stat = ((gb_io_stat & 0xFC) | 0x02);
@@ -7225,7 +7264,11 @@ void gb_updates()
 			{
 				if ((gb_io_stat & 0x08) == 0x08)
 				{
-					if ((gb_io_lcdc & 0x80) == 0x80) gb_io_if = (gb_io_if | 0x02); // interrupt
+					if ((gb_io_lcdc & 0x80) == 0x80)
+					{
+						gb_io_if = (gb_io_if | 0x02); // interrupt
+						gb_ext_stat_reason |= 0x08;
+					}
 				}
 
 				gb_line();
@@ -7249,7 +7292,11 @@ void gb_updates()
 	{
 		if ((gb_io_stat & 0x40) == 0x40)
 		{
-			if ((gb_io_lcdc & 0x80) == 0x80) gb_io_if = (gb_io_if | 0x02); // interrupt
+			if ((gb_io_lcdc & 0x80) == 0x80)
+			{
+				gb_io_if = (gb_io_if | 0x02); // interrupt
+				gb_ext_stat_reason |= 0x40;
+			}
 		}
 
 		gb_io_stat = ((gb_io_stat & 0xFB) | 0x04);
@@ -7261,30 +7308,31 @@ void gb_updates()
 
 	// timer cycles
 	gb_ext_div_cycles += gb_cpu_cycles;
-	gb_ext_tima_cycles += gb_cpu_cycles;
 
 	if (gb_ext_div_cycles >= 256) // div increments
 	{	
-		gb_ext_div_cycles -= 256;
-		gb_io_div = (unsigned char)(gb_io_div + 1);
+		gb_ext_div_cycles = (gb_ext_div_cycles & 0x00FF);
+		gb_io_div = (unsigned char)((gb_io_div + 1) & 0xFF);
 	}
 
-	if ((gb_io_tac & 0x04) == 0x04) // tima increments
+	if ((gb_io_tac & 0x04) == 0x04) // tima ticks and increments
 	{
+		gb_ext_tima_cycles += gb_cpu_cycles;
+
 		switch ((gb_io_tac & 0x03))
 		{
 			case 0x00:
 			{
 				if (gb_ext_tima_cycles >= 1024)
 				{
-					gb_ext_tima_cycles -= 1024;
-					gb_io_tima = (unsigned char)(gb_io_tima + 1);
+					gb_ext_tima_cycles = (gb_ext_tima_cycles & 0x03FF);
+					gb_io_tima = (unsigned char)((gb_io_tima + 1) & 0xFF);
 
 					if (gb_io_tima == 0x00) // overflow
 					{
 						gb_io_tima = (unsigned char)gb_io_tma;
 
-						gb_io_if = (gb_io_if | 0x04);
+						gb_io_if = (gb_io_if | 0x04); // interrupt
 					}
 				}
 				break;
@@ -7293,14 +7341,14 @@ void gb_updates()
 			{
 				if (gb_ext_tima_cycles >= 16)
 				{
-					gb_ext_tima_cycles -= 16;
-					gb_io_tima = (unsigned char)(gb_io_tima + 1);
+					gb_ext_tima_cycles = (gb_ext_tima_cycles & 0x000F);
+					gb_io_tima = (unsigned char)((gb_io_tima + 1) & 0xFF);
 		
 					if (gb_io_tima == 0x00) // overflow
 					{
 						gb_io_tima = (unsigned char)gb_io_tma;
 
-						gb_io_if = (gb_io_if | 0x04);
+						gb_io_if = (gb_io_if | 0x04); // interrupt
 					}
 				}
 				break;
@@ -7309,14 +7357,14 @@ void gb_updates()
 			{
 				if (gb_ext_tima_cycles >= 64)
 				{
-					gb_ext_tima_cycles -= 64;
-					gb_io_tima = (unsigned char)(gb_io_tima + 1);
+					gb_ext_tima_cycles = (gb_ext_tima_cycles & 0x003F);
+					gb_io_tima = (unsigned char)((gb_io_tima + 1) & 0xFF);
 
 					if (gb_io_tima == 0x00) // overflow
 					{
 						gb_io_tima = (unsigned char)gb_io_tma;
 
-						gb_io_if = (gb_io_if | 0x04);
+						gb_io_if = (gb_io_if | 0x04); // interrupt
 					}
 				}
 				break;
@@ -7325,14 +7373,14 @@ void gb_updates()
 			{
 				if (gb_ext_tima_cycles >= 256)
 				{
-					gb_ext_tima_cycles -= 256;
-					gb_io_tima = (unsigned char)(gb_io_tima + 1);
+					gb_ext_tima_cycles = (gb_ext_tima_cycles & 0x00FF);
+					gb_io_tima = (unsigned char)((gb_io_tima + 1) & 0xFF);
 
 					if (gb_io_tima == 0x00) // overflow
 					{
 						gb_io_tima = (unsigned char)gb_io_tma;
 
-						gb_io_if = (gb_io_if | 0x04);
+						gb_io_if = (gb_io_if | 0x04); // interrupt
 					}
 				}
 				break;
@@ -7393,6 +7441,33 @@ void gb_updates()
 			}
 		}
 	}
+
+	// remove outdated interrupts
+	if ((gb_io_if & 0x02) == 0x02)
+	{
+		if ((gb_ext_stat_reason & 0x40) == 0x40 && (gb_io_stat & 0x44) != 0x44)
+		{
+			gb_ext_stat_reason &= 0xBF;
+		}
+		
+		if ((gb_ext_stat_reason & 0x20) == 0x20 && (gb_io_stat & 0x23) != 0x22)
+		{
+			gb_ext_stat_reason &= 0xDF;
+		}
+
+		if ((gb_ext_stat_reason & 0x10) == 0x10 && (gb_io_stat & 0x13) != 0x11)
+		{
+			gb_ext_stat_reason &= 0xEF;
+		}
+
+		if ((gb_ext_stat_reason & 0x08) == 0x08 && (gb_io_stat & 0x0B) != 0x80)
+		{
+			gb_ext_stat_reason &= 0xF7;
+		}
+
+		if (gb_ext_stat_reason == 0x00) gb_io_if &= 0xFD;
+	}
+		
 }
 
 // checks for interrupts 
@@ -7961,6 +8036,8 @@ int main(const int argc, const char **argv)
 				gb_game_buttons_freeze_hold = 3;
 				gb_game_buttons_freeze_state = 1;
 			}
+
+			if (opengl_keyboard_state[GLFW_KEY_P] > 0) debug_mode = 1;
 		}
 	}
 
