@@ -5,7 +5,7 @@ This emulator is completely hand-made without any previous code used, though it 
 
 The principle is to keep this emulator in a single C file and have it as portable as possible to smaller devices.  It is also designed for speed over accuracy.  It uses OpenGL/GLFW and OpenAL as a basis for graphics and audio on desktop computers.  It was developed on Linux but should be portable to other systems with minimum or no effort at all.<br>
 
-As of now, it is a full DMG emulator with audio included, for No-MBC, MBC1, MBC2, MBC3, and MBC5 carts.  Future development will focus on GBC additions.<br>
+As of now, it is a full DMG emulator with audio included, for No-MBC, MBC1, MBC2, MBC3, and MBC5 carts.  GBC additions are on-going.  It can now play Crystal Clear without any glitches!<br>
 
 <b>Features:</b><br>
 - Cart RAM Save/Load<br>
@@ -30,4 +30,6 @@ As of now, it is a full DMG emulator with audio included, for No-MBC, MBC1, MBC2
     <td><table><tr><td><img src="Images/ZeldaDX.png"></td></tr><tr><td align="center"><b>Link's Awakening DX</b></td></tr></table></td></tr>
   <tr><td><table><tr><td><img src="Images/BalloonKid.png"></td></tr><tr><td align="center"><b>Balloon Kid</b></td></tr></table></td>
     <td><table><tr><td><img src="Images/TobuDX.png"></td></tr><tr><td align="center"><b>Tobu Tobu Girl DX</b></td></tr></table></td></tr>
+  <tr><td><table><tr><td><img src="Images/CrystalClear1.png"></td></tr><tr><td align="center"><b>Crystal Clear Town</b></td></tr></table></td>
+    <td><table><tr><td><img src="Images/CrystalClear2.png"></td></tr><tr><td align="center"><b>Crystal Clear Battle</b></td></tr></table></td></tr>
 </table>
