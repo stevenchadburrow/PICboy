@@ -7072,11 +7072,11 @@ void gb_audio()
 
 				if ((gb_aud_nr43 & 0x07) == 0x00)
 				{
-					gb_ext_ch4_divider = (unsigned long)((0x01 << (((gb_aud_nr43 & 0xF0) + 1) >> 5)));
+					gb_ext_ch4_divider = (unsigned long)((0x01 << (((gb_aud_nr43 & 0xF0) >> 5))));
 				}
 				else
 				{
-					gb_ext_ch4_divider = (unsigned long)(((gb_aud_nr43 & 0x07) << (((gb_aud_nr43 & 0xF0) + 1) >> 4)));
+					gb_ext_ch4_divider = (unsigned long)(((gb_aud_nr43 & 0x07) << (((gb_aud_nr43 & 0xF0) >> 4))));
 				}
 		
 				if ((gb_aud_nr43 & 0x08) == 0x08) // short
