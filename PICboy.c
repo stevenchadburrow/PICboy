@@ -60,7 +60,7 @@ unsigned char gb_game_buttons_previous = 0;
 unsigned char gb_game_buttons_turbo_a = 0;
 unsigned char gb_game_buttons_turbo_b = 0;
 unsigned char gb_game_buttons_turbo_timer = 0;
-unsigned short gb_game_buttons_turbo_pattern = 0x7777; // binary shift register
+unsigned short gb_game_buttons_turbo_pattern = 0x0F0F; // binary shift register
 unsigned char gb_game_buttons_fast_forward = 0;
 unsigned char gb_game_buttons_freeze_state = 0;
 unsigned char gb_game_buttons_freeze_hold = 0;
@@ -7555,7 +7555,7 @@ void gb_buttons(const char *save_file)
 
 	gb_game_buttons_turbo_timer += 1;
 
-	if (gb_game_buttons_turbo_timer >= 6) // 10 times per seconds
+	if (gb_game_buttons_turbo_timer >= 4) // 15 times per seconds
 	{
 		gb_game_buttons_turbo_timer = 0;
 
