@@ -23,7 +23,7 @@
 
 #define SCREEN_X 160
 #define SCREEN_Y 144
-#define SCREEN_Z 2 // scale for OpenGL
+#define SCREEN_Z 4 // scale for OpenGL
 #define AUDIO_LEN 1536 // at least 1098
 
 // uses OpenGL for graphics and keyboard
@@ -77,19 +77,60 @@ unsigned long gb_game_clock = 0;
 
 unsigned long gb_mode = UNK; // unknown by default
 
-// changed below on startup
-unsigned short gb_palette_master[40] = {
-	0x67A5, 0x3664, 0x21A5, 0x1106,
-	0x67A5, 0x3664, 0x21A5, 0x1106,
-	0x67A5, 0x3664, 0x21A5, 0x1106,
-	0x67A5, 0x3664, 0x21A5, 0x1106,
-	0x67A5, 0x3664, 0x21A5, 0x1106,
-	0x67A5, 0x3664, 0x21A5, 0x1106,
-	0x67A5, 0x3664, 0x21A5, 0x1106,
-	0x67A5, 0x3664, 0x21A5, 0x1106,
-	0x67A5, 0x3664, 0x21A5, 0x1106,
-	0x67A5, 0x3664, 0x21A5, 0x1106
+// color intensities
+unsigned char gb_palette_intensity[8] = { 
+	0x0000, 0x0003, 0x0007, 0x000A, 0x000F, 0x0013, 0x0017, 0x001F
 };
+
+// color shades from intensities
+unsigned char gb_palette_shade[120] = {
+	7, 7, 7,  5, 5, 5,  3, 3, 3,  0, 0, 0, // 0 = grey
+	7, 7, 7,  7, 4, 4,  5, 2, 2,  0, 0, 0, // 1 = red
+	7, 7, 7,  6, 5, 2,  4, 3, 0,  0, 0, 0, // 2 = brown
+	7, 7, 7,  5, 6, 2,  3, 4, 0,  0, 0, 0, // 3 = lime
+	7, 7, 7,  4, 7, 4,  2, 5, 2,  0, 0, 0, // 4 = green
+	7, 7, 7,  2, 6, 5,  0, 4, 3,  0, 0, 0, // 5 = teal
+	7, 7, 7,  2, 5, 6,  0, 3, 4,  0, 0, 0, // 6 = sky
+	7, 7, 7,  4, 4, 7,  2, 2, 5,  0, 0, 0, // 7 = blue
+	7, 7, 7,  5, 2, 6,  3, 0, 4,  0, 0, 0, // 8 = purple
+	7, 7, 7,  6, 2, 5,  4, 0, 3,  0, 0, 0, // 9 = magenta
+};
+
+// populated by arrange()
+unsigned short gb_palette_master[40];
+
+// run during startup to change master[]
+void gb_palette_arrange()
+{
+	unsigned short red, green, blue;
+
+	for (int i=0; i<10; i++)
+	{
+		red = gb_palette_intensity[gb_palette_shade[i*12+0]];
+		green = gb_palette_intensity[gb_palette_shade[i*12+1]];
+		blue = gb_palette_intensity[gb_palette_shade[i*12+2]];
+
+		gb_palette_master[i*4+0] = (unsigned short)(((red << 10) | (green << 5) | (blue)) & 0x7FFF);
+
+		red = gb_palette_intensity[gb_palette_shade[i*12+3]];
+		green = gb_palette_intensity[gb_palette_shade[i*12+4]];
+		blue = gb_palette_intensity[gb_palette_shade[i*12+5]];
+
+		gb_palette_master[i*4+1] = (unsigned short)(((red << 10) | (green << 5) | (blue)) & 0x7FFF);
+
+		red = gb_palette_intensity[gb_palette_shade[i*12+6]];
+		green = gb_palette_intensity[gb_palette_shade[i*12+7]];
+		blue = gb_palette_intensity[gb_palette_shade[i*12+8]];
+
+		gb_palette_master[i*4+2] = (unsigned short)(((red << 10) | (green << 5) | (blue)) & 0x7FFF);
+
+		red = gb_palette_intensity[gb_palette_shade[i*12+9]];
+		green = gb_palette_intensity[gb_palette_shade[i*12+10]];
+		blue = gb_palette_intensity[gb_palette_shade[i*12+11]];
+
+		gb_palette_master[i*4+3] = (unsigned short)(((red << 10) | (green << 5) | (blue)) & 0x7FFF);
+	}
+}
 
 // default pea-soup colors
 // changed on startup if option is used
@@ -100,11 +141,6 @@ unsigned short gb_palette_defined[12] = {
 	0x67A5, 0x3664, 0x21A5, 0x1106 // obp1
 };
 
-// during startup to help change palettes easily
-void gb_palette_arrange(unsigned short index, unsigned short red, unsigned short green, unsigned short blue)
-{
-	gb_palette_master[index] = (unsigned short)(((red << 10) | (green << 5) | (blue)) & 0x7FFF);
-}
 
 // memory arrays
 unsigned char gb_mem_rom[4194304]; // 4MB max size
@@ -7519,7 +7555,7 @@ void gb_buttons(const char *save_file)
 
 	gb_game_buttons_turbo_timer += 1;
 
-	if (gb_game_buttons_turbo_timer >= 12) // 5 times per seconds
+	if (gb_game_buttons_turbo_timer >= 6) // 10 times per seconds
 	{
 		gb_game_buttons_turbo_timer = 0;
 
@@ -7767,58 +7803,8 @@ int main(const int argc, const char **argv)
 		randomizer = (unsigned char)(rand() % 256);
 	}
 
-	// create DMG palette colors
-	unsigned short pal[8] = { 0x0000, 0x0003, 0x0007, 0x000A, 0x000F, 0x0013, 0x0017, 0x001F };
-
-	gb_palette_arrange(0*4+0, pal[7], pal[7], pal[7]); // white
-	gb_palette_arrange(0*4+1, pal[5], pal[5], pal[5]); // lite grey
-	gb_palette_arrange(0*4+2, pal[3], pal[3], pal[3]); // dark grey
-	gb_palette_arrange(0*4+3, pal[0], pal[0], pal[0]); // black
-
-	gb_palette_arrange(1*4+0, pal[7], pal[7], pal[7]); // white
-	gb_palette_arrange(1*4+1, pal[7], pal[4], pal[4]); // lite red
-	gb_palette_arrange(1*4+2, pal[6], pal[2], pal[2]); // dark red
-	gb_palette_arrange(1*4+3, pal[0], pal[0], pal[0]); // black
-
-	gb_palette_arrange(2*4+0, pal[7], pal[7], pal[7]); // white
-	gb_palette_arrange(2*4+1, pal[6], pal[4], pal[2]); // lite brown
-	gb_palette_arrange(2*4+2, pal[4], pal[3], pal[0]); // dark brown
-	gb_palette_arrange(2*4+3, pal[0], pal[0], pal[0]); // black
-
-	gb_palette_arrange(3*4+0, pal[7], pal[7], pal[7]); // white
-	gb_palette_arrange(3*4+1, pal[4], pal[6], pal[2]); // lite lime
-	gb_palette_arrange(3*4+2, pal[3], pal[4], pal[0]); // dark lime
-	gb_palette_arrange(3*4+3, pal[0], pal[0], pal[0]); // black
-
-	gb_palette_arrange(4*4+0, pal[7], pal[7], pal[7]); // white
-	gb_palette_arrange(4*4+1, pal[4], pal[7], pal[4]); // lite green
-	gb_palette_arrange(4*4+2, pal[2], pal[6], pal[2]); // dark green
-	gb_palette_arrange(4*4+3, pal[0], pal[0], pal[0]); // black
-
-	gb_palette_arrange(5*4+0, pal[7], pal[7], pal[7]); // white
-	gb_palette_arrange(5*4+1, pal[2], pal[6], pal[4]); // lite teal
-	gb_palette_arrange(5*4+2, pal[0], pal[4], pal[3]); // dark teal
-	gb_palette_arrange(5*4+3, pal[0], pal[0], pal[0]); // black
-
-	gb_palette_arrange(6*4+0, pal[7], pal[7], pal[7]); // white
-	gb_palette_arrange(6*4+1, pal[2], pal[4], pal[6]); // lite sky
-	gb_palette_arrange(6*4+2, pal[0], pal[3], pal[4]); // dark sky
-	gb_palette_arrange(6*4+3, pal[0], pal[0], pal[0]); // black
-
-	gb_palette_arrange(7*4+0, pal[7], pal[7], pal[7]); // white
-	gb_palette_arrange(7*4+1, pal[4], pal[4], pal[7]); // lite blue
-	gb_palette_arrange(7*4+2, pal[2], pal[2], pal[6]); // dark blue
-	gb_palette_arrange(7*4+3, pal[0], pal[0], pal[0]); // black
-
-	gb_palette_arrange(8*4+0, pal[7], pal[7], pal[7]); // white
-	gb_palette_arrange(8*4+1, pal[4], pal[2], pal[6]); // lite purple
-	gb_palette_arrange(8*4+2, pal[3], pal[0], pal[4]); // dark purple
-	gb_palette_arrange(8*4+3, pal[0], pal[0], pal[0]); // black
-
-	gb_palette_arrange(9*4+0, pal[7], pal[7], pal[7]); // white
-	gb_palette_arrange(9*4+1, pal[6], pal[2], pal[4]); // lite magenta
-	gb_palette_arrange(9*4+2, pal[4], pal[0], pal[3]); // dark magenta
-	gb_palette_arrange(9*4+3, pal[0], pal[0], pal[0]); // black
+	// arrange DMG palette selection
+	gb_palette_arrange();	
 
 	// load ROM file
 	FILE *input = NULL;
