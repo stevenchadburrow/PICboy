@@ -23,8 +23,8 @@
 
 #define SCREEN_X 160
 #define SCREEN_Y 144
-#define SCREEN_Z 3 // scale for OpenGL
-#define AUDIO_LEN 2048 // at least 1098
+#define SCREEN_Z 2 // scale for OpenGL
+#define AUDIO_LEN 1536 // at least 1098
 
 // uses OpenGL for graphics and keyboard
 #include <GLFW/glfw3.h>
@@ -48,10 +48,13 @@ unsigned char openal_enable = 1;
 
 // variables for general emulation
 unsigned short gb_game_screen_buffer[SCREEN_X*SCREEN_Y];
-unsigned short gb_game_audio_buffer[AUDIO_LEN];
+unsigned short gb_game_line_buffer[SCREEN_X]; // single line
+unsigned short gb_game_audio_buffer[AUDIO_LEN*2]; // double buffered
+unsigned long gb_game_audio_section = 0; // used with double buffering
 int gb_game_audio_file = 0;
 unsigned int gb_game_audio_read = 0;
 unsigned int gb_game_audio_write = 0;
+unsigned char gb_game_audio_mute = 0;
 unsigned char gb_game_buttons_current = 0;
 unsigned char gb_game_buttons_previous = 0;
 unsigned char gb_game_buttons_turbo_a = 0;
@@ -117,6 +120,7 @@ unsigned short gb_palette_defined[12] = {
 	0x67A5, 0x3664, 0x21A5, 0x1106 // obp1
 };
 
+// during startup to help change palettes easily
 void gb_palette_arrange(unsigned short index, unsigned short red, unsigned short green, unsigned short blue)
 {
 	gb_palette_master[index] = (unsigned short)(((red << 10) | (green << 5) | (blue)) & 0x7FFF);
@@ -288,7 +292,6 @@ unsigned long gb_cart_bank_addr = 0;
 // extra registers
 unsigned long gb_ext_lx = 0;
 unsigned long gb_ext_halt = 0;
-unsigned long gb_ext_stat_reason = 0;
 unsigned long gb_ext_div_cycles = 0;
 unsigned long gb_ext_tima_cycles = 0;
 unsigned long gb_ext_sb_cycles = 0;
@@ -587,7 +590,7 @@ int gb_load(const char *filename)
 #define gb_def_cycles(A) { \
 	gb_cpu_cycles += A; }
 
-// initial values after boot
+// initial values after built-in boot ROM
 int gb_initialize()
 {
 	int supported = 1; 
@@ -5830,6 +5833,8 @@ void gb_run()
 }
 
 // draws a single line
+// a little long in code and lots of duplication,
+// but consider it like 'unrolled loops' for optimization
 void gb_line()
 {
 	// disabled
@@ -5879,11 +5884,10 @@ void gb_line()
 						
 						if ((shift & 0x00FF) < 160)
 						{
-							pos = line + shift;
 							pal = ((((left & 0x01)) | ((right & 0x02))) << 1);
 
 							// pre-palette
-							gb_game_screen_buffer[pos] = ((pal) + ((attr & 0x07) << 3)) | (attr & 0x80); // gbc palettes
+							gb_game_line_buffer[shift] = ((pal) + ((attr & 0x07) << 3)) | (attr & 0x80); // gbc palettes
 						}
 
 						left = (left >> 1);
@@ -5905,11 +5909,10 @@ void gb_line()
 						
 						if ((shift & 0x00FF) < 160)
 						{
-							pos = line + shift;
 							pal = ((((left & 0x01)) | ((right & 0x02))) << 1);
 
 							// pre-palette
-							gb_game_screen_buffer[pos] = ((pal) + ((attr & 0x07) << 3)) | (attr & 0x80); // gbc palettes
+							gb_game_line_buffer[shift] = ((pal) + ((attr & 0x07) << 3)) | (attr & 0x80); // gbc palettes
 						}
 
 						left = (left >> 1);
@@ -5931,11 +5934,10 @@ void gb_line()
 						
 						if ((shift & 0x00FF) < 160)
 						{
-							pos = line + shift;
 							pal = ((((left & 0x01)) | ((right & 0x02))) << 1);
 
 							// pre-palette
-							gb_game_screen_buffer[pos] = ((pal) + ((attr & 0x07) << 3)) | (attr & 0x80); // gbc palettes
+							gb_game_line_buffer[shift] = ((pal) + ((attr & 0x07) << 3)) | (attr & 0x80); // gbc palettes
 						}
 
 						left = (left >> 1);
@@ -5957,11 +5959,10 @@ void gb_line()
 						
 						if ((shift & 0x00FF) < 160)
 						{
-							pos = line + shift;
 							pal = ((((left & 0x01)) | ((right & 0x02))) << 1);
 
 							// pre-palette
-							gb_game_screen_buffer[pos] = ((pal) + ((attr & 0x07) << 3)) | (attr & 0x80); // gbc palettes
+							gb_game_line_buffer[shift] = ((pal) + ((attr & 0x07) << 3)) | (attr & 0x80); // gbc palettes
 						}
 
 						left = (left >> 1);
@@ -6010,11 +6011,10 @@ void gb_line()
 								
 								if ((shift & 0x00FF) < 160)
 								{
-									pos = line + shift;
 									pal = ((((left & 0x01)) | ((right & 0x02))) << 1);
 									
 									// pre-palette
-									gb_game_screen_buffer[pos] = ((pal) + ((attr & 0x07) << 3)) | (attr & 0x80); // gbc palettes
+									gb_game_line_buffer[shift] = ((pal) + ((attr & 0x07) << 3)) | (attr & 0x80); // gbc palettes
 								}
 
 								left = (left >> 1);
@@ -6036,11 +6036,10 @@ void gb_line()
 								
 								if ((shift & 0x00FF) < 160)
 								{
-									pos = line + shift;
 									pal = ((((left & 0x01)) | ((right & 0x02))) << 1);
 									
 									// pre-palette
-									gb_game_screen_buffer[pos] = ((pal) + ((attr & 0x07) << 3)) | (attr & 0x80); // gbc palettes
+									gb_game_line_buffer[shift] = ((pal) + ((attr & 0x07) << 3)) | (attr & 0x80); // gbc palettes
 								}
 
 								left = (left >> 1);
@@ -6062,11 +6061,10 @@ void gb_line()
 								
 								if ((shift & 0x00FF) < 160)
 								{
-									pos = line + shift;
 									pal = ((((left & 0x01)) | ((right & 0x02))) << 1);
 									
 									// pre-palette
-									gb_game_screen_buffer[pos] = ((pal) + ((attr & 0x07) << 3)) | (attr & 0x80); // gbc palettes
+									gb_game_line_buffer[shift] = ((pal) + ((attr & 0x07) << 3)) | (attr & 0x80); // gbc palettes
 								}
 
 								left = (left >> 1);
@@ -6088,11 +6086,10 @@ void gb_line()
 								
 								if ((shift & 0x00FF) < 160)
 								{
-									pos = line + shift;
 									pal = ((((left & 0x01)) | ((right & 0x02))) << 1);
 									
 									// pre-palette
-									gb_game_screen_buffer[pos] = ((pal) + ((attr & 0x07) << 3)) | (attr & 0x80); // gbc palettes
+									gb_game_line_buffer[shift] = ((pal) + ((attr & 0x07) << 3)) | (attr & 0x80); // gbc palettes
 								}
 
 								left = (left >> 1);
@@ -6145,16 +6142,15 @@ void gb_line()
 									
 									if ((shift & 0x00FF) < 160)
 									{
-										pos = line + shift;
 										pal = ((((left & 0x01)) | ((right & 0x02))) << 1);
 
 										if (pal != 0x00)
 										{
-											if (pri_enable == 0 || (pri_enable == 1 && (gb_game_screen_buffer[pos] & 0x80) == 0x00 && (gb_mem_oam[i+3] & 0x80) == 0x00) || 
-												(pri_enable == 1 && (gb_game_screen_buffer[pos] & 0x06) == 0x00))
+											if (pri_enable == 0 || (pri_enable == 1 && (gb_game_line_buffer[shift] & 0x80) == 0x00 && (gb_mem_oam[i+3] & 0x80) == 0x00) || 
+												(pri_enable == 1 && (gb_game_line_buffer[shift] & 0x06) == 0x00))
 											{
 												// pre-palette
-												gb_game_screen_buffer[pos] = ((gb_game_screen_buffer[pos] & 0x80) | ((pal) + ((gb_mem_oam[i+3] & 0x07) << 3)) | 0x40); // gbc palettes
+												gb_game_line_buffer[shift] = ((gb_game_line_buffer[shift] & 0x80) | ((pal) + ((gb_mem_oam[i+3] & 0x07) << 3)) | 0x40); // gbc palettes
 											}
 										}
 									}
@@ -6178,16 +6174,15 @@ void gb_line()
 								
 									if ((shift & 0x00FF) < 160)
 									{
-										pos = line + shift;
 										pal = ((((left & 0x01)) | ((right & 0x02))) << 1);
 									
 										if (pal != 0x00)
 										{
-											if (pri_enable == 0 || (pri_enable == 1 && (gb_game_screen_buffer[pos] & 0x80) == 0x00 && (gb_mem_oam[i+3] & 0x80) == 0x00) || 
-												(pri_enable == 1 && (gb_game_screen_buffer[pos] & 0x06) == 0x00))
+											if (pri_enable == 0 || (pri_enable == 1 && (gb_game_line_buffer[shift] & 0x80) == 0x00 && (gb_mem_oam[i+3] & 0x80) == 0x00) || 
+												(pri_enable == 1 && (gb_game_line_buffer[shift] & 0x06) == 0x00))
 											{
 												// pre-palette
-												gb_game_screen_buffer[pos] = ((gb_game_screen_buffer[pos] & 0x80) | ((pal) + ((gb_mem_oam[i+3] & 0x07) << 3)) | 0x40); // gbc palettes
+												gb_game_line_buffer[shift] = ((gb_game_line_buffer[shift] & 0x80) | ((pal) + ((gb_mem_oam[i+3] & 0x07) << 3)) | 0x40); // gbc palettes
 											}
 										}
 									}
@@ -6211,16 +6206,15 @@ void gb_line()
 									
 									if ((shift & 0x00FF) < 160)
 									{
-										pos = line + shift;
 										pal = ((((left & 0x01)) | ((right & 0x02))) << 1);
 
 										if (pal != 0x00)
 										{
-											if (pri_enable == 0 || (pri_enable == 1 && (gb_game_screen_buffer[pos] & 0x80) == 0x00 && (gb_mem_oam[i+3] & 0x80) == 0x00) || 
-												(pri_enable == 1 && (gb_game_screen_buffer[pos] & 0x06) == 0x00))
+											if (pri_enable == 0 || (pri_enable == 1 && (gb_game_line_buffer[shift] & 0x80) == 0x00 && (gb_mem_oam[i+3] & 0x80) == 0x00) || 
+												(pri_enable == 1 && (gb_game_line_buffer[shift] & 0x06) == 0x00))
 											{
 												// pre-palette
-												gb_game_screen_buffer[pos] = ((gb_game_screen_buffer[pos] & 0x80) | ((pal) + ((gb_mem_oam[i+3] & 0x07) << 3)) | 0x40); // gbc palettes
+												gb_game_line_buffer[shift] = ((gb_game_line_buffer[shift] & 0x80) | ((pal) + ((gb_mem_oam[i+3] & 0x07) << 3)) | 0x40); // gbc palettes
 											}
 										}
 									}
@@ -6244,16 +6238,15 @@ void gb_line()
 								
 									if ((shift & 0x00FF) < 160)
 									{
-										pos = line + shift;
 										pal = ((((left & 0x01)) | ((right & 0x02))) << 1);
 
 										if (pal != 0x00)
 										{
-											if (pri_enable == 0 || (pri_enable == 1 && (gb_game_screen_buffer[pos] & 0x80) == 0x00 && (gb_mem_oam[i+3] & 0x80) == 0x00) || 
-												(pri_enable == 1 && (gb_game_screen_buffer[pos] & 0x06) == 0x00))
+											if (pri_enable == 0 || (pri_enable == 1 && (gb_game_line_buffer[shift] & 0x80) == 0x00 && (gb_mem_oam[i+3] & 0x80) == 0x00) || 
+												(pri_enable == 1 && (gb_game_line_buffer[shift] & 0x06) == 0x00))
 											{
 												// pre-palette
-												gb_game_screen_buffer[pos] = ((gb_game_screen_buffer[pos] & 0x80) | ((pal) + ((gb_mem_oam[i+3] & 0x07) << 3)) | 0x40); // gbc palettes
+												gb_game_line_buffer[shift] = ((gb_game_line_buffer[shift] & 0x80) | ((pal) + ((gb_mem_oam[i+3] & 0x07) << 3)) | 0x40); // gbc palettes
 											}
 										}
 									}
@@ -6304,16 +6297,15 @@ void gb_line()
 									
 									if ((shift & 0x00FF) < 160)
 									{
-										pos = line + shift;
 										pal = ((((left & 0x01)) | ((right & 0x02))) << 1);
 
 										if (pal != 0x00)
 										{
-											if (pri_enable == 0 || (pri_enable == 1 && (gb_game_screen_buffer[pos] & 0x80) == 0x00 && (gb_mem_oam[i+3] & 0x80) == 0x00) || 
-												(pri_enable == 1 && (gb_game_screen_buffer[pos] & 0x06) == 0x00))
+											if (pri_enable == 0 || (pri_enable == 1 && (gb_game_line_buffer[shift] & 0x80) == 0x00 && (gb_mem_oam[i+3] & 0x80) == 0x00) || 
+												(pri_enable == 1 && (gb_game_line_buffer[shift] & 0x06) == 0x00))
 											{
 												// pre-palette
-												gb_game_screen_buffer[pos] = ((gb_game_screen_buffer[pos] & 0x80) | ((pal) + ((gb_mem_oam[i+3] & 0x07) << 3)) | 0x40); // gbc palettes
+												gb_game_line_buffer[shift] = ((gb_game_line_buffer[shift] & 0x80) | ((pal) + ((gb_mem_oam[i+3] & 0x07) << 3)) | 0x40); // gbc palettes
 											}
 										}
 									}
@@ -6337,16 +6329,15 @@ void gb_line()
 								
 									if ((shift & 0x00FF) < 160)
 									{
-										pos = line + shift;
 										pal = ((((left & 0x01)) | ((right & 0x02))) << 1);
 									
 										if (pal != 0x00)
 										{
-											if (pri_enable == 0 || (pri_enable == 1 && (gb_game_screen_buffer[pos] & 0x80) == 0x00 && (gb_mem_oam[i+3] & 0x80) == 0x00) || 
-												(pri_enable == 1 && (gb_game_screen_buffer[pos] & 0x06) == 0x00))
+											if (pri_enable == 0 || (pri_enable == 1 && (gb_game_line_buffer[shift] & 0x80) == 0x00 && (gb_mem_oam[i+3] & 0x80) == 0x00) || 
+												(pri_enable == 1 && (gb_game_line_buffer[shift] & 0x06) == 0x00))
 											{
 												// pre-palette
-												gb_game_screen_buffer[pos] = ((gb_game_screen_buffer[pos] & 0x80) | ((pal) + ((gb_mem_oam[i+3] & 0x07) << 3)) | 0x40); // gbc palettes
+												gb_game_line_buffer[shift] = ((gb_game_line_buffer[shift] & 0x80) | ((pal) + ((gb_mem_oam[i+3] & 0x07) << 3)) | 0x40); // gbc palettes
 											}
 										}
 									}
@@ -6370,16 +6361,15 @@ void gb_line()
 									
 									if ((shift & 0x00FF) < 160)
 									{
-										pos = line + shift;
 										pal = ((((left & 0x01)) | ((right & 0x02))) << 1);
 
 										if (pal != 0x00)
 										{
-											if (pri_enable == 0 || (pri_enable == 1 && (gb_game_screen_buffer[pos] & 0x80) == 0x00 && (gb_mem_oam[i+3] & 0x80) == 0x00) || 
-												(pri_enable == 1 && (gb_game_screen_buffer[pos] & 0x06) == 0x00))
+											if (pri_enable == 0 || (pri_enable == 1 && (gb_game_line_buffer[shift] & 0x80) == 0x00 && (gb_mem_oam[i+3] & 0x80) == 0x00) || 
+												(pri_enable == 1 && (gb_game_line_buffer[shift] & 0x06) == 0x00))
 											{
 												// pre-palette
-												gb_game_screen_buffer[pos] = ((gb_game_screen_buffer[pos] & 0x80) | ((pal) + ((gb_mem_oam[i+3] & 0x07) << 3)) | 0x40); // gbc palettes
+												gb_game_line_buffer[shift] = ((gb_game_line_buffer[shift] & 0x80) | ((pal) + ((gb_mem_oam[i+3] & 0x07) << 3)) | 0x40); // gbc palettes
 											}
 										}
 									}
@@ -6403,16 +6393,15 @@ void gb_line()
 								
 									if ((shift & 0x00FF) < 160)
 									{
-										pos = line + shift;
 										pal = ((((left & 0x01)) | ((right & 0x02))) << 1);
 
 										if (pal != 0x00)
 										{
-											if (pri_enable == 0 || (pri_enable == 1 && (gb_game_screen_buffer[pos] & 0x80) == 0x00 && (gb_mem_oam[i+3] & 0x80) == 0x00) || 
-												(pri_enable == 1 && (gb_game_screen_buffer[pos] & 0x06) == 0x00))
+											if (pri_enable == 0 || (pri_enable == 1 && (gb_game_line_buffer[shift] & 0x80) == 0x00 && (gb_mem_oam[i+3] & 0x80) == 0x00) || 
+												(pri_enable == 1 && (gb_game_line_buffer[shift] & 0x06) == 0x00))
 											{
 												// pre-palette
-												gb_game_screen_buffer[pos] = ((gb_game_screen_buffer[pos] & 0x80) | ((pal) + ((gb_mem_oam[i+3] & 0x07) << 3)) | 0x40); // gbc palettes
+												gb_game_line_buffer[shift] = ((gb_game_line_buffer[shift] & 0x80) | ((pal) + ((gb_mem_oam[i+3] & 0x07) << 3)) | 0x40); // gbc palettes
 											}
 										}
 									}
@@ -6433,8 +6422,8 @@ void gb_line()
 		for (int i=0; i<160; i++)
 		{
 			gb_game_screen_buffer[line + i] = 
-				(unsigned short)(gb_mem_swap[(gb_game_screen_buffer[line + i] & 0x7F)+1] << 8) | 
-				(unsigned short)(gb_mem_swap[(gb_game_screen_buffer[line + i] & 0x7F)+0]);
+				(unsigned short)(gb_mem_swap[(gb_game_line_buffer[i] & 0x7F)+1] << 8) | 
+				(unsigned short)(gb_mem_swap[(gb_game_line_buffer[i] & 0x7F)+0]);
 		}
 	}
 	else // Original DMG mode
@@ -6464,12 +6453,11 @@ void gb_line()
 				
 				if ((shift & 0x00FF) < 160)
 				{
-					pos = line + shift;
 					pal = ((((left & 0x01)) | ((right & 0x02))) << 1);
 					val = ((gb_io_bgp & (0x03 << pal)) >> pal);
 
 					// pre-palette
-					gb_game_screen_buffer[pos] = val;
+					gb_game_line_buffer[shift] = val;
 				}
 
 				left = (left >> 1);
@@ -6506,12 +6494,11 @@ void gb_line()
 						
 						if ((shift & 0x00FF) < 160)
 						{
-							pos = line + shift;
 							pal = ((((left & 0x01)) | ((right & 0x02))) << 1);
 							val = ((gb_io_bgp & (0x03 << pal)) >> pal);
 							
 							// pre-palette
-							gb_game_screen_buffer[pos] = val;
+							gb_game_line_buffer[shift] = val;
 						}
 
 						left = (left >> 1);
@@ -6570,17 +6557,16 @@ void gb_line()
 									
 									if ((shift & 0x00FF) < 160)
 									{
-										pos = line + shift;
 										pal = ((((left & 0x01)) | ((right & 0x02))) << 1);
 
 										if (pal != 0x00)
 										{
 											val = ((loc & (0x03 << pal)) >> pal);
 											
-											if (pri_enable == 0 || gb_game_screen_buffer[pos] == pri_value)
+											if (pri_enable == 0 || gb_game_line_buffer[shift] == pri_value)
 											{
 												// pre-palette
-												gb_game_screen_buffer[pos] = (val | obj);
+												gb_game_line_buffer[shift] = (val | obj);
 											}
 										}
 									}
@@ -6604,17 +6590,16 @@ void gb_line()
 								
 									if ((shift & 0x00FF) < 160)
 									{
-										pos = line + shift;
 										pal = ((((left & 0x01)) | ((right & 0x02))) << 1);
 									
 										if (pal != 0x00)
 										{
 											val = ((loc & (0x03 << pal)) >> pal);
 											
-											if (pri_enable == 0 || gb_game_screen_buffer[pos] == pri_value)
+											if (pri_enable == 0 || gb_game_line_buffer[shift] == pri_value)
 											{
 												// pre-palette
-												gb_game_screen_buffer[pos] = (val | obj);
+												gb_game_line_buffer[shift] = (val | obj);
 											}
 										}
 									}
@@ -6638,17 +6623,16 @@ void gb_line()
 									
 									if ((shift & 0x00FF) < 160)
 									{
-										pos = line + shift;
 										pal = ((((left & 0x01)) | ((right & 0x02))) << 1);
 
 										if (pal != 0x00)
 										{
 											val = ((loc & (0x03 << pal)) >> pal);
 										
-											if (pri_enable == 0 || gb_game_screen_buffer[pos] == pri_value)
+											if (pri_enable == 0 || gb_game_line_buffer[shift] == pri_value)
 											{
 												// pre-palette
-												gb_game_screen_buffer[pos] = (val | obj);
+												gb_game_line_buffer[shift] = (val | obj);
 											}
 										}
 									}
@@ -6672,17 +6656,16 @@ void gb_line()
 								
 									if ((shift & 0x00FF) < 160)
 									{
-										pos = line + shift;
 										pal = ((((left & 0x01)) | ((right & 0x02))) << 1);
 
 										if (pal != 0x00)
 										{
 											val = ((loc & (0x03 << pal)) >> pal);
 											
-											if (pri_enable == 0 || gb_game_screen_buffer[pos] == pri_value)
+											if (pri_enable == 0 || gb_game_line_buffer[shift] == pri_value)
 											{
 												// pre-palette
-												gb_game_screen_buffer[pos] = (val | obj);
+												gb_game_line_buffer[shift] = (val | obj);
 											}
 										}
 									}
@@ -6743,17 +6726,16 @@ void gb_line()
 									
 									if ((shift & 0x00FF) < 160)
 									{
-										pos = line + shift;
 										pal = ((((left & 0x01)) | ((right & 0x02))) << 1);
 
 										if (pal != 0x00)
 										{
 											val = ((loc & (0x03 << pal)) >> pal);
 											
-											if (pri_enable == 0 || gb_game_screen_buffer[pos] == pri_value)
+											if (pri_enable == 0 || gb_game_line_buffer[shift] == pri_value)
 											{
 												// pre-palette
-												gb_game_screen_buffer[pos] = (val | obj);
+												gb_game_line_buffer[shift] = (val | obj);
 											}
 										}
 									}
@@ -6777,17 +6759,16 @@ void gb_line()
 								
 									if ((shift & 0x00FF) < 160)
 									{
-										pos = line + shift;
 										pal = ((((left & 0x01)) | ((right & 0x02))) << 1);
 									
 										if (pal != 0x00)
 										{
 											val = ((loc & (0x03 << pal)) >> pal);
 											
-											if (pri_enable == 0 || gb_game_screen_buffer[pos] == pri_value)
+											if (pri_enable == 0 || gb_game_line_buffer[shift] == pri_value)
 											{
 												// pre-palette
-												gb_game_screen_buffer[pos] = (val | obj);
+												gb_game_line_buffer[shift] = (val | obj);
 											}
 										}
 									}
@@ -6811,17 +6792,16 @@ void gb_line()
 									
 									if ((shift & 0x00FF) < 160)
 									{
-										pos = line + shift;
 										pal = ((((left & 0x01)) | ((right & 0x02))) << 1);
 
 										if (pal != 0x00)
 										{
 											val = ((loc & (0x03 << pal)) >> pal);
 											
-											if (pri_enable == 0 || gb_game_screen_buffer[pos] == pri_value)
+											if (pri_enable == 0 || gb_game_line_buffer[shift] == pri_value)
 											{
 												// pre-palette
-												gb_game_screen_buffer[pos] = (val | obj);
+												gb_game_line_buffer[shift] = (val | obj);
 											}
 										}
 									}
@@ -6845,17 +6825,16 @@ void gb_line()
 								
 									if ((shift & 0x00FF) < 160)
 									{
-										pos = line + shift;
 										pal = ((((left & 0x01)) | ((right & 0x02))) << 1);
 
 										if (pal != 0x00)
 										{
 											val = ((loc & (0x03 << pal)) >> pal);
 											
-											if (pri_enable == 0 || gb_game_screen_buffer[pos] == pri_value)
+											if (pri_enable == 0 || gb_game_line_buffer[shift] == pri_value)
 											{
 												// pre-palette
-												gb_game_screen_buffer[pos] = (val | obj);
+												gb_game_line_buffer[shift] = (val | obj);
 											}
 										}
 									}
@@ -6875,12 +6854,13 @@ void gb_line()
 		// replace with palette	
 		for (int i=0; i<160; i++)
 		{
-			gb_game_screen_buffer[line + i] = gb_palette_defined[gb_game_screen_buffer[line + i]];
+			gb_game_screen_buffer[line + i] = gb_palette_defined[gb_game_line_buffer[i]];
 		}
 	}
 }
 
 // run at 32768 Hz sample rate
+// outputs a stream for playback
 void gb_audio()
 {
 	if (AUDIO_ENABLE == 0) return; // defined above
@@ -7092,21 +7072,28 @@ void gb_audio()
 
 				if ((gb_aud_nr43 & 0x07) == 0x00)
 				{
-					gb_ext_ch4_divider = (unsigned long)((0x01 << ((gb_aud_nr43 & 0xF0) >> 5)));
+					gb_ext_ch4_divider = (unsigned long)((0x01 << (((gb_aud_nr43 & 0xF0) + 1) >> 5)));
 				}
 				else
 				{
-					gb_ext_ch4_divider = (unsigned long)(((gb_aud_nr43 & 0x07) << ((gb_aud_nr43 & 0xF0) >> 4)));
+					gb_ext_ch4_divider = (unsigned long)(((gb_aud_nr43 & 0x07) << (((gb_aud_nr43 & 0xF0) + 1) >> 4)));
 				}
 		
-				// using this instead of LFSR
-				if (gb_random_table[gb_ext_ch4_random] >= 0x80)
+				if ((gb_aud_nr43 & 0x08) == 0x08) // short
 				{
-					gb_ext_ch4_value = 0x01FF; // max of 0x01FF for each channel
+					// using this instead of LFSR
+					if (gb_random_table[gb_ext_ch4_random] >= 0x80) 
+					{
+						gb_ext_ch4_value = ((gb_ext_ch4_value ^ 0x01FF) & 0x01FF);
+					}
 				}
-				else
+				else // long
 				{
-					gb_ext_ch4_value = 0x0000;
+					// using this instead of LFSR
+					if (gb_random_table[gb_ext_ch4_random] >= 0x40) 
+					{
+						gb_ext_ch4_value = ((gb_ext_ch4_value ^ 0x01FF) & 0x01FF);
+					}
 				}
 
 				gb_ext_ch4_random = (unsigned char)(gb_ext_ch4_random + 1);
@@ -7156,14 +7143,14 @@ void gb_audio()
 	}
 
 	// mixer/panning
-	gb_game_audio_buffer[gb_game_audio_write] = 0x0000; // unsigned
-	gb_game_audio_buffer[gb_game_audio_write] += (unsigned short)(gb_ext_ch1_value * gb_ext_ch1_volume * (((gb_aud_nr51 & 0x10) >> 4) + ((gb_aud_nr51 & 0x01))));
-	gb_game_audio_buffer[gb_game_audio_write] += (unsigned short)(gb_ext_ch2_value * gb_ext_ch2_volume * (((gb_aud_nr51 & 0x20) >> 5) + ((gb_aud_nr51 & 0x02) >> 1)));
-	gb_game_audio_buffer[gb_game_audio_write] += (unsigned short)(gb_ext_ch3_value * gb_ext_ch3_volume * (((gb_aud_nr51 & 0x40) >> 6) + ((gb_aud_nr51 & 0x04) >> 2)));
-	gb_game_audio_buffer[gb_game_audio_write] += (unsigned short)(gb_ext_ch4_value * gb_ext_ch4_volume * (((gb_aud_nr51 & 0x80) >> 7) + ((gb_aud_nr51 & 0x08) >> 3)));
+	gb_game_audio_buffer[gb_game_audio_write+gb_game_audio_section] = 0x0000; // unsigned
+	gb_game_audio_buffer[gb_game_audio_write+gb_game_audio_section] += (unsigned short)(gb_ext_ch1_value * gb_ext_ch1_volume * (((gb_aud_nr51 & 0x10) >> 4) + ((gb_aud_nr51 & 0x01))));
+	gb_game_audio_buffer[gb_game_audio_write+gb_game_audio_section] += (unsigned short)(gb_ext_ch2_value * gb_ext_ch2_volume * (((gb_aud_nr51 & 0x20) >> 5) + ((gb_aud_nr51 & 0x02) >> 1)));
+	gb_game_audio_buffer[gb_game_audio_write+gb_game_audio_section] += (unsigned short)(gb_ext_ch3_value * gb_ext_ch3_volume * (((gb_aud_nr51 & 0x40) >> 6) + ((gb_aud_nr51 & 0x04) >> 2)));
+	gb_game_audio_buffer[gb_game_audio_write+gb_game_audio_section] += (unsigned short)(gb_ext_ch4_value * gb_ext_ch4_volume * (((gb_aud_nr51 & 0x80) >> 7) + ((gb_aud_nr51 & 0x08) >> 3)));
 
 	// master volume
-	gb_game_audio_buffer[gb_game_audio_write] = gb_game_audio_buffer[gb_game_audio_write] / (16 - (((gb_aud_nr50 & 0x70) >> 4) + (gb_aud_nr50 & 0x07)));
+	gb_game_audio_buffer[gb_game_audio_write+gb_game_audio_section] = gb_game_audio_buffer[gb_game_audio_write] / (16 - (((gb_aud_nr50 & 0x70) >> 4) + (gb_aud_nr50 & 0x07)));
 	
 	gb_game_audio_write += 1;
 
@@ -7174,8 +7161,6 @@ void gb_audio()
 }
 
 // checks for things according to cycles taken
-// NEEDS TO TURN OFF PENDING INTERRUPTS THAT ARE NOT SERVICED AND NO LONGER RELIVANT
-// EXAMPLE: STAT 0x40 should never happen!
 void gb_updates()
 {
 	// serial cycles
@@ -7474,6 +7459,140 @@ void gb_interrupts()
 	}
 }
 
+// checks button presses and changes button status
+// cart RAM save file name required
+void gb_buttons(const char *save_file)
+{
+	gb_game_buttons_previous = gb_game_buttons_current; // previous
+
+	if (opengl_keyboard_state[GLFW_KEY_W] == 0) gb_game_buttons_current = (gb_game_buttons_current | 0x40); // up
+	else gb_game_buttons_current = (gb_game_buttons_current & 0xBF);
+	
+	if (opengl_keyboard_state[GLFW_KEY_S] == 0) gb_game_buttons_current = (gb_game_buttons_current | 0x80); // down
+	else gb_game_buttons_current = (gb_game_buttons_current & 0x7F);
+
+	if (opengl_keyboard_state[GLFW_KEY_A] == 0) gb_game_buttons_current = (gb_game_buttons_current | 0x20); // left
+	else gb_game_buttons_current = (gb_game_buttons_current & 0xDF);
+	
+	if (opengl_keyboard_state[GLFW_KEY_D] == 0) gb_game_buttons_current = (gb_game_buttons_current | 0x10); // right
+	else gb_game_buttons_current = (gb_game_buttons_current & 0xEF);
+
+	if (opengl_keyboard_state[GLFW_KEY_K] == 0) gb_game_buttons_current = (gb_game_buttons_current | 0x01); // A
+	else gb_game_buttons_current = (gb_game_buttons_current & 0xFE);
+	
+	if (opengl_keyboard_state[GLFW_KEY_J] == 0) gb_game_buttons_current = (gb_game_buttons_current | 0x02); // B
+	else gb_game_buttons_current = (gb_game_buttons_current & 0xFD);
+
+	if (opengl_keyboard_state[GLFW_KEY_BACKSPACE] == 0) gb_game_buttons_current = (gb_game_buttons_current | 0x04); // select
+	else gb_game_buttons_current = (gb_game_buttons_current & 0xFB);
+	
+	if (opengl_keyboard_state[GLFW_KEY_ENTER] == 0) gb_game_buttons_current = (gb_game_buttons_current | 0x08); // start
+	else gb_game_buttons_current = (gb_game_buttons_current & 0xF7);
+
+	if (opengl_keyboard_state[GLFW_KEY_L] == 0) gb_game_buttons_fast_forward = 0; // fast-forward
+	else gb_game_buttons_fast_forward = 1;
+
+	if (opengl_keyboard_state[GLFW_KEY_O] > 0) // freeze
+	{
+		if (gb_game_buttons_freeze_hold == 2)
+		{
+			gb_game_buttons_freeze_hold = 3;
+			gb_game_buttons_freeze_state = 1;
+		}
+		else if (gb_game_buttons_freeze_hold == 0)
+		{
+			gb_game_buttons_freeze_hold = 1;
+			gb_game_buttons_freeze_state = 1;
+		}
+	}					
+	else
+	{
+		if (gb_game_buttons_freeze_hold == 1)
+		{
+			gb_game_buttons_freeze_hold = 2;
+			gb_game_buttons_freeze_state = 1;
+		}
+		else if (gb_game_buttons_freeze_hold == 3)
+		{
+			gb_game_buttons_freeze_hold = 0;
+			gb_game_buttons_freeze_state = 0;
+		}
+	}
+
+	if (opengl_keyboard_state[GLFW_KEY_I] == 0) gb_game_buttons_turbo_a = 0; // turbo A
+	else gb_game_buttons_turbo_a = 1;
+
+	if (opengl_keyboard_state[GLFW_KEY_U] == 0) gb_game_buttons_turbo_b = 0; // turbo B
+	else gb_game_buttons_turbo_b = 1;
+
+	gb_game_buttons_turbo_timer += 1;
+
+	if (gb_game_buttons_turbo_timer >= 12) // 5 times per seconds
+	{
+		gb_game_buttons_turbo_timer = 0;
+
+		if ((gb_game_buttons_turbo_pattern & 0x0001) == 0x0000) // lift up
+		{
+			if (gb_game_buttons_turbo_a > 0) gb_game_buttons_current = (unsigned char)(gb_game_buttons_current & 0xFE); // A
+			if (gb_game_buttons_turbo_b > 0) gb_game_buttons_current = (unsigned char)(gb_game_buttons_current & 0xFD); // B
+		}
+		else // press down
+		{
+			if (gb_game_buttons_turbo_a > 0) gb_game_buttons_current = (unsigned char)(gb_game_buttons_current | 0x01); // A
+			if (gb_game_buttons_turbo_b > 0) gb_game_buttons_current = (unsigned char)(gb_game_buttons_current | 0x02); // B
+		}
+
+		// shift register
+		gb_game_buttons_turbo_pattern = ((gb_game_buttons_turbo_pattern >> 1) | ((gb_game_buttons_turbo_pattern & 0x01) << 15) & 0xFFFF);
+	}
+
+	if (opengl_keyboard_state[GLFW_KEY_B] > 0)
+	{
+		if (gb_game_buttons_saving == 0)
+		{
+			gb_game_buttons_saving = 1;
+
+			if (gb_save(save_file) > 0)
+			{
+				printf("Saved Cart RAM to: %s\n", save_file);
+			}
+		}
+	}
+	else
+	{
+		gb_game_buttons_saving = 0;
+	}
+
+	if (gb_game_buttons_saving > 0)
+	{
+		gb_game_buttons_freeze_hold = 3;
+		gb_game_buttons_freeze_state = 1;
+	}
+
+	if (opengl_keyboard_state[GLFW_KEY_V] > 0) // mute
+	{
+		if (gb_game_audio_mute == 0)
+		{
+			gb_game_audio_mute = 1;
+		}
+		else if (gb_game_audio_mute == 2)
+		{
+			gb_game_audio_mute = 3;
+		}
+	}
+	else
+	{
+		if (gb_game_audio_mute == 1)
+		{
+			gb_game_audio_mute = 2;
+		}
+		else if (gb_game_audio_mute == 3)
+		{
+			gb_game_audio_mute = 0;
+		}
+	}
+}
+
 
 // using OpenAL
 unsigned char openal_open()
@@ -7519,20 +7638,26 @@ void openal_play()
 {
 	if (openal_enable == 0) return;
 
-	for (int i=0; i<AUDIO_LEN; i++) openal_data[i] = (unsigned short)(gb_game_audio_buffer[i]); // unsigned
+	if (gb_game_audio_mute > 0) return;
+
+	for (int i=0; i<AUDIO_LEN; i++) openal_data[i] = (unsigned short)(gb_game_audio_buffer[i+gb_game_audio_section]); // unsigned
 
 	alGenBuffers(1, &openal_buffer);
 	alBufferData(openal_buffer, AL_FORMAT_MONO16, openal_data, 1098, 32768); // calculation: 70224 / 128 * 2 = 1097.25
 	alSourcei(openal_source, AL_BUFFER, openal_buffer);
 	alSourcePlay(openal_source);
 	
+	// double buffering
+	if (gb_game_audio_section > 0) gb_game_audio_section = AUDIO_LEN;
+	else gb_game_audio_section = 0;
+
 	for (int i=0; i<AUDIO_LEN; i++)
 	{
-		gb_game_audio_buffer[i] = 0x0000; // unsigned
+		gb_game_audio_buffer[i+gb_game_audio_section] = 0x0000; // unsigned
 	}
 
-	gb_game_audio_read = 0;
 	gb_game_audio_write = 0;
+	// use 'gb_game_audio_read' if device audio requires manual feeding per byte
 }
 
 // OpenGL function
@@ -7630,8 +7755,10 @@ int main(const int argc, const char **argv)
 	printf("\tBACKSPACE = Select\n");
 	printf("\tENTER = Start\n");
 	printf("\tIU = Turbo-AB\n");
-	printf("\tLO = FastForward/Freeze\n");
+	printf("\tL = Fast-Forward\n");
+	printf("\tO = Freeze\n");
 	printf("\tB = Save RAM file\n");
+	printf("\tV = Mute Audio\n");
 	printf("Arguments: <ROM file> [GBC|DMG|000|123|...] [RAM file]\n");
 
 	if (argc < 2)
@@ -7881,120 +8008,13 @@ int main(const int argc, const char **argv)
 
 			glfwPollEvents();
 
-			gb_game_buttons_previous = gb_game_buttons_current; // previous
-
-			if (opengl_keyboard_state[GLFW_KEY_W] == 0) gb_game_buttons_current = (gb_game_buttons_current | 0x40); // up
-			else gb_game_buttons_current = (gb_game_buttons_current & 0xBF);
-			
-			if (opengl_keyboard_state[GLFW_KEY_S] == 0) gb_game_buttons_current = (gb_game_buttons_current | 0x80); // down
-			else gb_game_buttons_current = (gb_game_buttons_current & 0x7F);
-
-			if (opengl_keyboard_state[GLFW_KEY_A] == 0) gb_game_buttons_current = (gb_game_buttons_current | 0x20); // left
-			else gb_game_buttons_current = (gb_game_buttons_current & 0xDF);
-			
-			if (opengl_keyboard_state[GLFW_KEY_D] == 0) gb_game_buttons_current = (gb_game_buttons_current | 0x10); // right
-			else gb_game_buttons_current = (gb_game_buttons_current & 0xEF);
-
-			if (opengl_keyboard_state[GLFW_KEY_K] == 0) gb_game_buttons_current = (gb_game_buttons_current | 0x01); // A
-			else gb_game_buttons_current = (gb_game_buttons_current & 0xFE);
-			
-			if (opengl_keyboard_state[GLFW_KEY_J] == 0) gb_game_buttons_current = (gb_game_buttons_current | 0x02); // B
-			else gb_game_buttons_current = (gb_game_buttons_current & 0xFD);
-
-			if (opengl_keyboard_state[GLFW_KEY_BACKSPACE] == 0) gb_game_buttons_current = (gb_game_buttons_current | 0x04); // select
-			else gb_game_buttons_current = (gb_game_buttons_current & 0xFB);
-			
-			if (opengl_keyboard_state[GLFW_KEY_ENTER] == 0) gb_game_buttons_current = (gb_game_buttons_current | 0x08); // start
-			else gb_game_buttons_current = (gb_game_buttons_current & 0xF7);
-
-			if (opengl_keyboard_state[GLFW_KEY_L] == 0) gb_game_buttons_fast_forward = 0; // fast-forward
-			else gb_game_buttons_fast_forward = 1;
-
-			if (opengl_keyboard_state[GLFW_KEY_O] > 0) // freeze
+			if (argc >= 4)
 			{
-				if (gb_game_buttons_freeze_hold == 2)
-				{
-					gb_game_buttons_freeze_hold = 3;
-					gb_game_buttons_freeze_state = 1;
-				}
-				else if (gb_game_buttons_freeze_hold == 0)
-				{
-					gb_game_buttons_freeze_hold = 1;
-					gb_game_buttons_freeze_state = 1;
-				}
-			}					
-			else
-			{
-				if (gb_game_buttons_freeze_hold == 1)
-				{
-					gb_game_buttons_freeze_hold = 2;
-					gb_game_buttons_freeze_state = 1;
-				}
-				else if (gb_game_buttons_freeze_hold == 3)
-				{
-					gb_game_buttons_freeze_hold = 0;
-					gb_game_buttons_freeze_state = 0;
-				}
-			}
-
-			if (opengl_keyboard_state[GLFW_KEY_I] == 0) gb_game_buttons_turbo_a = 0; // turbo A
-			else gb_game_buttons_turbo_a = 1;
-
-			if (opengl_keyboard_state[GLFW_KEY_U] == 0) gb_game_buttons_turbo_b = 0; // turbo B
-			else gb_game_buttons_turbo_b = 1;
-
-			gb_game_buttons_turbo_timer += 1;
-
-			if (gb_game_buttons_turbo_timer >= 12) // 5 times per seconds
-			{
-				gb_game_buttons_turbo_timer = 0;
-
-				if ((gb_game_buttons_turbo_pattern & 0x0001) == 0x0000) // lift up
-				{
-					if (gb_game_buttons_turbo_a > 0) gb_game_buttons_current = (unsigned char)(gb_game_buttons_current & 0xFE); // A
-					if (gb_game_buttons_turbo_b > 0) gb_game_buttons_current = (unsigned char)(gb_game_buttons_current & 0xFD); // B
-				}
-				else // press down
-				{
-					if (gb_game_buttons_turbo_a > 0) gb_game_buttons_current = (unsigned char)(gb_game_buttons_current | 0x01); // A
-					if (gb_game_buttons_turbo_b > 0) gb_game_buttons_current = (unsigned char)(gb_game_buttons_current | 0x02); // B
-				}
-
-				// shift register
-				gb_game_buttons_turbo_pattern = ((gb_game_buttons_turbo_pattern >> 1) | ((gb_game_buttons_turbo_pattern & 0x01) << 15) & 0xFFFF);
-			}
-
-			if (opengl_keyboard_state[GLFW_KEY_B] > 0)
-			{
-				if (gb_game_buttons_saving == 0)
-				{
-					gb_game_buttons_saving = 1;
-
-					if (argc >= 4)
-					{
-						if (gb_save(argv[3]) > 0)
-						{
-							printf("Saved Cart RAM to: %s\n", argv[3]);
-						}
-					}
-					else
-					{
-						if (gb_save("SaveFile.bin") > 0)
-						{
-							printf("Saved Cart RAM to: SaveFile.bin\n");
-						}
-					}
-				}
+				gb_buttons(argv[3]); // include cart RAM save file
 			}
 			else
 			{
-				gb_game_buttons_saving = 0;
-			}
-
-			if (gb_game_buttons_saving > 0)
-			{
-				gb_game_buttons_freeze_hold = 3;
-				gb_game_buttons_freeze_state = 1;
+				gb_buttons("SaveFile.bin"); // default name
 			}
 		}
 	}
