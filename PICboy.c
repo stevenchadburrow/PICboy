@@ -7178,7 +7178,7 @@ void gb_audio()
 	gb_game_audio_buffer[gb_game_audio_write+gb_game_audio_section] += (unsigned short)(gb_ext_ch4_value * gb_ext_ch4_volume * (((gb_aud_nr51 & 0x80) >> 7) + ((gb_aud_nr51 & 0x08) >> 3)));
 
 	// master volume
-	gb_game_audio_buffer[gb_game_audio_write+gb_game_audio_section] = gb_game_audio_buffer[gb_game_audio_write] / (16 - (((gb_aud_nr50 & 0x70) >> 4) + (gb_aud_nr50 & 0x07)));
+	gb_game_audio_buffer[gb_game_audio_write+gb_game_audio_section] = gb_game_audio_buffer[gb_game_audio_write+gb_game_audio_section] / (16 - (((gb_aud_nr50 & 0x70) >> 4) + (gb_aud_nr50 & 0x07)));
 	
 	gb_game_audio_write += 1;
 
