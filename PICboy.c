@@ -1586,7 +1586,97 @@ void gb_write(unsigned short addr, unsigned char val)
 	}
 	else if (addr < 0xC000) // external ram
 	{
-		gb_mem_eram[addr-0xA000] = val;
+		switch (gb_cart_mbc)
+		{
+			case 0x00:
+			{
+				gb_mem_eram[addr-0xA000] = val;
+				break;
+			}
+			case 0x01:
+			{
+				if (gb_cart_enable_ram > 0)
+				{
+					if (gb_cart_bank_mode == 0x00)
+					{
+						gb_mem_eram[addr-0xA000] = val;
+					}
+					else
+					{
+						gb_cart_bank_addr = (gb_cart_bank_ram << 13) | (addr & 0x1FFF);
+						gb_cart_bank_addr = (gb_cart_bank_addr & gb_cart_mask_ram);
+
+						gb_mem_eram[gb_cart_bank_addr] = val;
+					}
+				}
+				else
+				{
+				}		
+
+				break;	
+			}
+			case 0x02:
+			{
+				if (gb_cart_enable_ram > 0)
+				{
+					gb_mem_eram[addr-0xA000] = val;
+				}
+				else
+				{
+				}		
+
+				break;	
+			}
+			case 0x03:
+			{
+				if (gb_cart_enable_ram > 0)
+				{
+					if (gb_cart_bank_mode == 0x00)
+					{
+						gb_mem_eram[addr-0xA000] = val;
+					}
+					else
+					{
+						gb_cart_bank_addr = (gb_cart_bank_ram << 13) | (addr & 0x1FFF);
+						gb_cart_bank_addr = (gb_cart_bank_addr & gb_cart_mask_ram);
+
+						gb_mem_eram[gb_cart_bank_addr] = val;
+					}
+				}
+				else
+				{
+				}		
+
+				break;	
+			}
+			case 0x05:
+			{
+				if (gb_cart_enable_ram > 0)
+				{
+					if (gb_cart_bank_mode == 0x00)
+					{
+						gb_mem_eram[addr-0xA000] = val;
+					}
+					else
+					{
+						gb_cart_bank_addr = (gb_cart_bank_ram << 13) | (addr & 0x1FFF);
+						gb_cart_bank_addr = (gb_cart_bank_addr & gb_cart_mask_ram);
+
+						gb_mem_eram[gb_cart_bank_addr] = val;
+					}
+				}
+				else
+				{
+				}		
+
+				break;	
+			}
+			default:
+			{
+				gb_mem_eram[addr-0xA000] = val;
+				break;
+			}
+		}
 	}
 	else if (addr < 0xD000) // work ram, fixed bank
 	{
