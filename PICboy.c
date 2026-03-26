@@ -311,6 +311,7 @@ unsigned long gb_ext_halt = 0;
 unsigned long gb_ext_div_cycles = 0;
 unsigned long gb_ext_tima_cycles = 0;
 unsigned long gb_ext_sb_cycles = 0;
+unsigned long gb_ext_stat_previous = 0;
 unsigned long gb_ext_dma_addr = 0;
 unsigned long gb_ext_aud_cycles = 0;
 unsigned long gb_ext_ch1_sweep = 0;
@@ -7278,6 +7279,8 @@ void gb_audio()
 	}
 }
 
+unsigned long gb_ext_stat_reason = 0x00;
+
 // checks for things according to cycles taken
 void gb_updates()
 {
@@ -7296,7 +7299,10 @@ void gb_updates()
 		}
 	}
 
+
 	// lcd/stat cycles
+	gb_ext_stat_previous = gb_io_stat;
+	
 	gb_ext_lx += (gb_cpu_cycles >> gb_ext_speed_shift); // everything else can be twice as fast
 
 	if (gb_ext_lx >= 456) // horizontal max
@@ -7364,26 +7370,157 @@ void gb_updates()
 
 	if ((gb_io_lcdc & 0x80) == 0x80)
 	{
-		if ((gb_io_stat & 0x08) == 0x08 && (gb_io_stat & 0x03) == 0x00) // mode 0 interrupt
+		if ((gb_io_stat & 0x08) == 0x08 && (gb_ext_stat_previous & 0x08) != 0x08 && (gb_io_stat & 0x03) == 0x00) // mode 0 interrupt
 		{
 			gb_io_if |= 0x02;
 		}
 
-		if ((gb_io_stat & 0x10) == 0x10 && (gb_io_stat & 0x03) == 0x01) // mode 1 interrupt
+		if ((gb_io_stat & 0x10) == 0x10 && (gb_ext_stat_previous & 0x10) != 0x10 && (gb_io_stat & 0x03) == 0x01) // mode 1 interrupt
 		{
 			gb_io_if |= 0x02;
 		}
 
-		if ((gb_io_stat & 0x20) == 0x20 && (gb_io_stat & 0x03) == 0x02) // mode 2 interrupt
+		if ((gb_io_stat & 0x20) == 0x20 && (gb_ext_stat_previous & 0x20) != 0x20 && (gb_io_stat & 0x03) == 0x02) // mode 2 interrupt
 		{
 			gb_io_if |= 0x02;
 		}
 
-		if ((gb_io_stat & 0x40) == 0x40 && (gb_io_stat & 0x04) == 0x04) // LY=LYC interrupt
+		if ((gb_io_stat & 0x40) == 0x40 && (gb_ext_stat_previous & 0x40) != 0x40 && (gb_io_stat & 0x04) == 0x04) // LY=LYC interrupt
 		{
 			gb_io_if |= 0x02;
 		}
 	}
+
+
+
+/*
+	// lcd cycles
+	gb_ext_lx += (gb_cpu_cycles >> gb_ext_speed_shift); // everything else can be twice as fast
+
+	if (gb_ext_lx >= 456) // horizontal max
+	{
+		gb_ext_lx -= 456;
+		gb_io_ly += 1;
+
+		if (gb_io_ly == 144) // vblank
+		{
+			gb_io_if = (gb_io_if | 0x01);
+			gb_game_draw = 1;
+		}
+		else if (gb_io_ly >= 154) // vertical max
+		{
+			gb_io_ly -= 154;
+		}
+	}	
+
+	if (gb_io_ly >= 144) // mode 1
+	{
+		if ((gb_io_stat & 0x03) != 0x01 && (gb_io_stat & 0x10) == 0x10)
+		{
+			if ((gb_io_lcdc & 0x80) == 0x80)
+			{
+				gb_io_if = (gb_io_if | 0x02); // interrupt
+				gb_ext_stat_reason |= 0x10;
+			}
+		}
+
+		gb_io_stat = ((gb_io_stat & 0xFC) | 0x01);
+	}
+	else
+	{
+		if (gb_ext_lx < 80) // mode 2
+		{
+			if ((gb_io_stat & 0x03) != 0x02 && (gb_io_stat & 0x20) == 0x20)
+			{
+				if ((gb_io_lcdc & 0x80) == 0x80)
+				{
+					gb_io_if = (gb_io_if | 0x02); // interrupt
+					gb_ext_stat_reason |= 0x20;
+				}
+			}
+
+			gb_io_stat = ((gb_io_stat & 0xFC) | 0x02);
+		}
+		else if (gb_ext_lx < 252) // mode 3
+		{
+			gb_io_stat = ((gb_io_stat & 0xFC) | 0x03);
+		}
+		else // mode 0
+		{
+			if ((gb_io_stat & 0x03) != 0x00)
+			{
+				if ((gb_io_stat & 0x08) == 0x08)
+				{
+					if ((gb_io_lcdc & 0x80) == 0x80)
+					{
+						gb_io_if = (gb_io_if | 0x02); // interrupt
+						gb_ext_stat_reason |= 0x08;
+					}
+				}
+
+				gb_line();
+
+				if (gb_mode == GBC) gb_ext_hdma_hblank = 1;
+			}
+
+			gb_io_stat = ((gb_io_stat & 0xFC) | 0x00);
+		}
+	}
+
+	if ((gb_io_lcdc & 0x80) == 0x00) // keep at 0 when off
+	{
+		gb_ext_lx = 0;
+		gb_io_ly = 0;
+
+		gb_io_stat = ((gb_io_stat & 0xFC));
+	}
+
+	if (gb_io_ly == gb_io_lyc) // compare
+	{
+		if ((gb_io_stat & 0x40) == 0x40)
+		{
+			if ((gb_io_lcdc & 0x80) == 0x80)
+			{
+				gb_io_if = (gb_io_if | 0x02); // interrupt
+				gb_ext_stat_reason |= 0x40;
+			}
+		}
+
+		gb_io_stat = ((gb_io_stat & 0xFB) | 0x04);
+	}
+	else
+	{
+		gb_io_stat = ((gb_io_stat & 0xFB) | 0x00);
+	}
+
+	// remove outdated LCD/STAT interrupts
+	if ((gb_io_if & 0x02) == 0x02)
+	{
+		if ((gb_ext_stat_reason & 0x40) == 0x40 && (gb_io_stat & 0x44) != 0x44)
+		{
+			gb_ext_stat_reason &= 0xBF;
+		}
+		
+		if ((gb_ext_stat_reason & 0x20) == 0x20 && (gb_io_stat & 0x23) != 0x22)
+		{
+			gb_ext_stat_reason &= 0xDF;
+		}
+
+		if ((gb_ext_stat_reason & 0x10) == 0x10 && (gb_io_stat & 0x13) != 0x11)
+		{
+			gb_ext_stat_reason &= 0xEF;
+		}
+
+		if ((gb_ext_stat_reason & 0x08) == 0x08 && (gb_io_stat & 0x0B) != 0x80)
+		{
+			gb_ext_stat_reason &= 0xF7;
+		}
+
+		if (gb_ext_stat_reason == 0x00) gb_io_if &= 0xFD; // no interrupts
+	}
+*/
+
+
 
 	// timer cycles
 	gb_ext_div_cycles += gb_cpu_cycles;
@@ -7519,7 +7656,7 @@ void gb_updates()
 				gb_io_hdma5 = (gb_io_hdma5 & 0x80) | ((gb_io_hdma5 & 0x7F) - 1);
 			}
 		}
-	}
+	}		
 }
 
 // checks for interrupts 
@@ -8084,6 +8221,8 @@ int main(const int argc, const char **argv)
 			{
 				gb_buttons("SaveFile.bin"); // default name
 			}
+
+			//printf("%02X\n", gb_mem_wram[0x0634]);
 		}
 	}
 
