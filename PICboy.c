@@ -7231,6 +7231,7 @@ void gb_audio()
 		if ((gb_aud_nr22 & 0x07) != 0x00)
 		{
 			gb_ext_ch2_envelope += gb_ext_ch2_increment;
+
 			if (gb_ext_ch2_envelope >= ((gb_aud_nr22 & 0x07) << 9)) // multiply by 512
 			{
 				gb_ext_ch2_envelope -= ((gb_aud_nr22 & 0x07) << 9); // multiply by 512
@@ -7371,6 +7372,7 @@ void gb_audio()
 		if ((gb_aud_nr42 & 0x07) != 0x00)
 		{
 			gb_ext_ch4_envelope += gb_ext_ch4_increment;
+
 			if (gb_ext_ch4_envelope >= ((gb_aud_nr42 & 0x07) << 9)) // multiply by 512
 			{
 				gb_ext_ch4_envelope -= ((gb_aud_nr42 & 0x07) << 9); // multiply by 512
