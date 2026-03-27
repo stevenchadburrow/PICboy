@@ -5,7 +5,7 @@ This emulator is completely hand-made without any previous code used, though it 
 
 The principle is to keep this emulator in a single C file and have it as portable as possible to smaller devices.  It is also designed for speed over accuracy.  It uses OpenGL/GLFW and OpenAL as a basis for graphics and audio on desktop computers.  It was developed on Linux but should be portable to other systems with minimum or no effort at all.<br>
 
-This is a full DMG/GBC emulator with audio included, for No-MBC, MBC1, MBC2, MBC3, and MBC5 carts.  Nearly all GBC additions are marked somehow.  Most GBC games work, some do not, specifically Shantae (which I'm ok with!)  Also, the audio is not great, but quality may vary depending on what platform/device you use anyways.  It runs Crystal Clear just fine, so good enough!<br>
+This is a full DMG/GBC emulator with audio included, for No-MBC, MBC1, MBC2, MBC3, and MBC5 carts.  Nearly all GBC additions are marked somehow.  Most GBC games work, some do not, specifically Shantae (which I'm ok with!)  The audio sounds great on microcontroller hardware, but this implementation using OpenAL makes it sound pretty bad.  Overall, it runs Crystal Clear just fine, so good enough!<br>
 
 <b>Features:</b><br>
 - Cart RAM Save/Load<br>
