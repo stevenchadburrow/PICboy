@@ -320,22 +320,31 @@ unsigned long gb_ext_ch1_period = 0;
 unsigned long gb_ext_ch1_length = 0;
 unsigned long gb_ext_ch1_volume = 0;
 unsigned long gb_ext_ch1_envelope = 0;
+unsigned long gb_ext_ch1_shadow = 0;
+unsigned long gb_ext_ch1_increment = 0;
+unsigned long gb_ext_ch1_duty = 0;
 unsigned long gb_ext_ch1_value = 0;
 unsigned long gb_ext_ch2_period = 0;
 unsigned long gb_ext_ch2_length = 0;
 unsigned long gb_ext_ch2_volume = 0;
 unsigned long gb_ext_ch2_envelope = 0;
+unsigned long gb_ext_ch2_shadow = 0;
+unsigned long gb_ext_ch2_increment = 0;
+unsigned long gb_ext_ch2_duty = 0;
 unsigned long gb_ext_ch2_value = 0;
 unsigned long gb_ext_ch3_period = 0;
 unsigned long gb_ext_ch3_length = 0;
-unsigned long gb_ext_ch3_volume = 0;
+unsigned long gb_ext_ch3_shift = 0;
 unsigned long gb_ext_ch3_index = 0;
+unsigned long gb_ext_ch3_buffer = 0;
 unsigned long gb_ext_ch3_value = 0;
 unsigned long gb_ext_ch4_divider = 0;
 unsigned long gb_ext_ch4_period = 0;
 unsigned long gb_ext_ch4_length = 0;
 unsigned long gb_ext_ch4_volume = 0;
 unsigned long gb_ext_ch4_envelope = 0;
+unsigned long gb_ext_ch4_shadow = 0;
+unsigned long gb_ext_ch4_increment = 0;
 unsigned long gb_ext_ch4_value = 0;
 unsigned long gb_ext_ch4_lfsr = 0xA5A5; // random value
 unsigned long gb_ext_ch4_bit = 0;
@@ -1755,13 +1764,35 @@ void gb_write(unsigned short addr, unsigned char val)
 
 				gb_ext_ch1_length = (unsigned long)((gb_aud_nr11 & 0x3F) << 7);
 
+				switch ((gb_aud_nr11 & 0xC0))
+				{
+					case 0x00: // 12.5%
+					{
+						gb_ext_ch1_duty = 0x01;
+						break;
+					}
+					case 0x40: // 25%
+					{
+						gb_ext_ch1_duty = 0x03;
+						break;
+					}
+					case 0x80: // 50%
+					{
+						gb_ext_ch1_duty = 0x0F;
+						break;
+					}
+					case 0xC0: // 75%
+					{
+						gb_ext_ch1_duty = 0x3F;
+						break;
+					}
+				}
+
 				break;
 			}
 			case 0xFF12: // NR12
 			{
-				gb_aud_nr12 = (unsigned char)val;
-
-				gb_ext_ch1_volume = (unsigned long)((gb_aud_nr12 & 0xF0) >> 4);
+				gb_ext_ch1_shadow = (unsigned char)val;
 
 				break;
 			}
@@ -1785,9 +1816,37 @@ void gb_write(unsigned short addr, unsigned char val)
 
 					gb_ext_ch1_length = (unsigned long)((gb_aud_nr11 & 0x3F) << 7);
 
+					switch ((gb_aud_nr11 & 0xC0))
+					{
+						case 0x00: // 12.5%
+						{
+							gb_ext_ch1_duty = 0x01;
+							break;
+						}
+						case 0x40: // 25%
+						{
+							gb_ext_ch1_duty = 0x03;
+							break;
+						}
+						case 0x80: // 50%
+						{
+							gb_ext_ch1_duty = 0x0F;
+							break;
+						}
+						case 0xC0: // 75%
+						{
+							gb_ext_ch1_duty = 0x3F;
+							break;
+						}
+					}
+
+					gb_aud_nr12 = (unsigned char)gb_ext_ch1_shadow;
+
 					gb_ext_ch1_volume = (unsigned long)((gb_aud_nr12 & 0xF0) >> 4);
 
-					gb_ext_ch1_envelope = (unsigned long)(gb_aud_nr12 & 0x07);
+					gb_ext_ch1_envelope = 0x00; //(unsigned long)(gb_aud_nr12 & 0x07);
+
+					gb_ext_ch1_increment = 1;
 				}
 
 				break;
@@ -1798,15 +1857,35 @@ void gb_write(unsigned short addr, unsigned char val)
 
 				gb_ext_ch2_length = (unsigned long)((gb_aud_nr21 & 0x3F) << 7);
 
+				switch ((gb_aud_nr21 & 0xC0))
+				{
+					case 0x00: // 12.5%
+					{
+						gb_ext_ch2_duty = 0x01;
+						break;
+					}
+					case 0x40: // 25%
+					{
+						gb_ext_ch2_duty = 0x03;
+						break;
+					}
+					case 0x80: // 50%
+					{
+						gb_ext_ch2_duty = 0x0F;
+						break;
+					}
+					case 0xC0: // 75%
+					{
+						gb_ext_ch2_duty = 0x3F;
+						break;
+					}
+				}
+
 				break;
 			}
 			case 0xFF17: // NR22
 			{
-				gb_aud_nr22 = (unsigned char)val;
-
-				gb_ext_ch2_volume = (unsigned long)((gb_aud_nr22 & 0xF0) >> 4);
-
-				gb_ext_ch2_envelope = (unsigned long)(gb_aud_nr22 & 0x07);
+				gb_ext_ch2_shadow = (unsigned char)val;
 
 				break;
 			}
@@ -1830,9 +1909,37 @@ void gb_write(unsigned short addr, unsigned char val)
 
 					gb_ext_ch2_length = (unsigned long)((gb_aud_nr21 & 0x3F) << 7);
 
+					switch ((gb_aud_nr21 & 0xC0))
+					{
+						case 0x00: // 12.5%
+						{
+							gb_ext_ch2_duty = 0x01;
+							break;
+						}
+						case 0x40: // 25%
+						{
+							gb_ext_ch2_duty = 0x03;
+							break;
+						}
+						case 0x80: // 50%
+						{
+							gb_ext_ch2_duty = 0x0F;
+							break;
+						}
+						case 0xC0: // 75%
+						{
+							gb_ext_ch2_duty = 0x3F;
+							break;
+						}
+					}
+
+					gb_aud_nr22 = (unsigned char)gb_ext_ch2_shadow;
+
 					gb_ext_ch2_volume = (unsigned long)((gb_aud_nr22 & 0xF0) >> 4);
 
-					gb_ext_ch2_envelope = (unsigned long)(gb_aud_nr22 & 0x07);
+					gb_ext_ch2_envelope = 0x00; //(unsigned long)(gb_aud_nr22 & 0x07);
+
+					gb_ext_ch2_increment = 1;
 				}
 
 				break;
@@ -1844,6 +1951,8 @@ void gb_write(unsigned short addr, unsigned char val)
 				if ((gb_aud_nr30 & 0x80) == 0x00)
 				{
 					gb_aud_nr52 = (unsigned char)(gb_aud_nr52 & 0xFB); // disable channel 3
+
+					gb_ext_ch3_buffer = 0x00;
 				}
 
 				break;
@@ -1864,22 +1973,22 @@ void gb_write(unsigned short addr, unsigned char val)
 				{
 					case 0x00:
 					{
-						gb_ext_ch3_volume = 0x00;
+						gb_ext_ch3_shift = 0x04;
 						break;
 					}
 					case 0x20:
 					{
-						gb_ext_ch3_volume = 0x0F;	
+						gb_ext_ch3_shift = 0x00;	
 						break;
 					}
 					case 0x40:
 					{
-						gb_ext_ch3_volume = 0x07;
+						gb_ext_ch3_shift = 0x01;
 						break;
 					}
 					case 0x60:
 					{
-						gb_ext_ch3_volume = 0x03;
+						gb_ext_ch3_shift = 0x02;
 						break;
 					}			
 				}
@@ -1910,27 +2019,27 @@ void gb_write(unsigned short addr, unsigned char val)
 					{
 						case 0x00:
 						{
-							gb_ext_ch3_volume = 0x00;
+							gb_ext_ch3_shift = 0x04;
 							break;
 						}
 						case 0x20:
 						{
-							gb_ext_ch3_volume = 0x0F;	
+							gb_ext_ch3_shift = 0x00;	
 							break;
 						}
 						case 0x40:
 						{
-							gb_ext_ch3_volume = 0x07;
+							gb_ext_ch3_shift = 0x01;
 							break;
 						}
 						case 0x60:
 						{
-							gb_ext_ch3_volume = 0x03;
+							gb_ext_ch3_shift = 0x02;
 							break;
 						}			
 					}
 
-					gb_ext_ch3_index = 0;
+					gb_ext_ch3_index = 0x00;
 				}
 
 				break;
@@ -1945,11 +2054,7 @@ void gb_write(unsigned short addr, unsigned char val)
 			}
 			case 0xFF21: // NR42
 			{
-				gb_aud_nr42 = (unsigned char)val;
-
-				gb_ext_ch4_volume = (unsigned long)((gb_aud_nr42 & 0xF0) >> 4);
-
-				gb_ext_ch4_envelope = (unsigned long)(gb_aud_nr42 & 0x07);
+				gb_ext_ch4_shadow = (unsigned char)val;
 
 				break;
 			}
@@ -1975,9 +2080,15 @@ void gb_write(unsigned short addr, unsigned char val)
 
 					gb_ext_ch4_length = (unsigned long)((gb_aud_nr41 & 0x3F) << 7);
 
+					gb_aud_nr42 = (unsigned char)gb_ext_ch4_shadow;
+
 					gb_ext_ch4_volume = (unsigned long)((gb_aud_nr42 & 0xF0) >> 4);
 
-					gb_ext_ch4_envelope = (unsigned long)(gb_aud_nr42 & 0x07);
+					gb_ext_ch4_envelope = 0x00; //(unsigned long)(gb_aud_nr42 & 0x07);
+
+					gb_ext_ch4_increment = 1;
+
+					//gb_ext_ch4_divider = (unsigned long)((gb_aud_nr43 & 0x07) << ((gb_aud_nr43 & 0xF0) >> 8));
 				}
 
 				break;
@@ -2022,6 +2133,7 @@ void gb_write(unsigned short addr, unsigned char val)
 
 				break;
 			}
+
 			case 0xFF30: { gb_mem_wave[0] = (unsigned char)val; break; } // WAVE
 			case 0xFF31: { gb_mem_wave[1] = (unsigned char)val; break; }
 			case 0xFF32: { gb_mem_wave[2] = (unsigned char)val; break; }
@@ -6979,7 +7091,7 @@ void gb_audio()
 	if ((gb_aud_nr52 & 0x01) == 0x01)
 	{
 		// period
-		gb_ext_ch1_period += 8; // doubled for full wavelength
+		gb_ext_ch1_period += 32; // 4 * 8 = 32
 		
 		if (gb_ext_ch1_period >= 2048)
 		{
@@ -6987,7 +7099,16 @@ void gb_audio()
 
 			gb_ext_ch1_period += (unsigned long)(((gb_aud_nr14 & 0x07) << 8) | (gb_aud_nr13 & 0xFF));
 			
-			gb_ext_ch1_value = (unsigned short)((gb_ext_ch1_value ^ 0x01FF) & 0x01FF); // max of 0x01FF for each channel
+			if ((gb_ext_ch1_duty & 0x01) == 0x01)
+			{
+				gb_ext_ch1_value = (unsigned short)(0x01FF); // max of 0x01FF for each channel
+			}
+			else
+			{
+				gb_ext_ch1_value = 0x0000;
+			}
+
+			gb_ext_ch1_duty = (unsigned char)((((gb_ext_ch1_duty & 0x01) << 7) | (gb_ext_ch1_duty >> 1)) & 0xFF);
 		}
 
 		// length
@@ -7004,11 +7125,11 @@ void gb_audio()
 		// volume/envelope
 		if ((gb_aud_nr12 & 0x07) != 0x00)
 		{
-			gb_ext_ch1_envelope += 1;
+			gb_ext_ch1_envelope += gb_ext_ch1_increment;
 
-			if (gb_ext_ch1_envelope >= ((gb_aud_nr12 & 0x07) << 9))
+			if (gb_ext_ch1_envelope >= ((gb_aud_nr12 & 0x07) << 9)) // multiply by 512
 			{
-				gb_ext_ch1_envelope -= ((gb_aud_nr12 & 0x07) << 9);
+				gb_ext_ch1_envelope -= ((gb_aud_nr12 & 0x07) << 9); // multiply by 512
 
 				if ((gb_aud_nr12 & 0x08) == 0x08)
 				{
@@ -7016,6 +7137,7 @@ void gb_audio()
 					{
 						gb_ext_ch1_volume += 1; // increase volume
 					}
+					else gb_ext_ch1_increment = 0;
 				}
 				else
 				{
@@ -7023,6 +7145,7 @@ void gb_audio()
 					{
 						gb_ext_ch1_volume -= 1; // decrease volume
 					}
+					else gb_ext_ch1_increment = 0;
 				}
 			}
 		}
@@ -7073,7 +7196,7 @@ void gb_audio()
 	if ((gb_aud_nr52 & 0x02) == 0x02)
 	{
 		// period
-		gb_ext_ch2_period += 8; // doubled for full wavelength
+		gb_ext_ch2_period += 32; // 4 * 8 = 32
 		
 		if (gb_ext_ch2_period >= 2048)
 		{
@@ -7081,7 +7204,16 @@ void gb_audio()
 
 			gb_ext_ch2_period += (unsigned long)(((gb_aud_nr24 & 0x07) << 8) | (gb_aud_nr23 & 0xFF));
 			
-			gb_ext_ch2_value = (unsigned short)((gb_ext_ch2_value ^ 0x01FF) & 0x01FF); // max of 0x01FF for each channel
+			if ((gb_ext_ch2_duty & 0x01) == 0x01)
+			{
+				gb_ext_ch2_value = (unsigned short)(0x01FF); // max of 0x01FF for each channel
+			}
+			else
+			{
+				gb_ext_ch2_value = 0x0000;
+			}
+
+			gb_ext_ch2_duty = (unsigned char)((((gb_ext_ch2_duty & 0x01) << 7) | (gb_ext_ch2_duty >> 1)) & 0xFF);
 		}
 
 		// length
@@ -7098,11 +7230,10 @@ void gb_audio()
 		// volume/envelope
 		if ((gb_aud_nr22 & 0x07) != 0x00)
 		{
-			gb_ext_ch2_envelope += 1;
-
-			if (gb_ext_ch2_envelope >= ((gb_aud_nr22 & 0x07) << 9))
+			gb_ext_ch2_envelope += gb_ext_ch2_increment;
+			if (gb_ext_ch2_envelope >= ((gb_aud_nr22 & 0x07) << 9)) // multiply by 512
 			{
-				gb_ext_ch2_envelope -= ((gb_aud_nr22 & 0x07) << 9);
+				gb_ext_ch2_envelope -= ((gb_aud_nr22 & 0x07) << 9); // multiply by 512
 
 				if ((gb_aud_nr22 & 0x08) == 0x08)
 				{
@@ -7110,6 +7241,7 @@ void gb_audio()
 					{
 						gb_ext_ch2_volume += 1; // increase volume
 					}
+					else gb_ext_ch2_increment = 0;
 				}
 				else
 				{
@@ -7117,6 +7249,7 @@ void gb_audio()
 					{
 						gb_ext_ch2_volume -= 1; // decrease volume
 					}
+					else gb_ext_ch2_increment = 0;
 				}
 			}
 		}
@@ -7130,24 +7263,26 @@ void gb_audio()
 	if ((gb_aud_nr52 & 0x04) == 0x04 && (gb_aud_nr30 & 0x80) == 0x80)
 	{
 		// period
-		gb_ext_ch3_period += 4; // half freqency of pulse channels
-		
+		gb_ext_ch3_period += 64; // 4 * 16 = 64, should be half the speed of pulse of just 4?
+
 		if (gb_ext_ch3_period >= 2048)
 		{
 			gb_ext_ch3_period -= 2048;
 
 			gb_ext_ch3_period += (unsigned long)(((gb_aud_nr34 & 0x07) << 8) | (gb_aud_nr33 & 0xFF));
+
+			gb_ext_ch3_index = (unsigned long)((gb_ext_ch3_index + 1) & 0x1F);
 			
 			if ((gb_ext_ch3_index & 0x01) == 0x00)
 			{
-				gb_ext_ch3_value = (unsigned short)((gb_mem_wave[(gb_ext_ch3_index >> 1)] & 0xF0) << 1); // max of 0x01FF for each channel
+				gb_ext_ch3_buffer = (unsigned short)(((gb_mem_wave[(gb_ext_ch3_index >> 1)] & 0xF0) >> 4));
 			}
 			else
 			{
-				gb_ext_ch3_value = (unsigned short)((gb_mem_wave[(gb_ext_ch3_index >> 1)] & 0x0F) << 5); // max of 0x01FF for each channel
+				gb_ext_ch3_buffer = (unsigned short)(((gb_mem_wave[(gb_ext_ch3_index >> 1)] & 0x0F)));
 			}
 
-			gb_ext_ch3_index = (unsigned long)((gb_ext_ch3_index + 1) & 0x1F);
+			gb_ext_ch3_value = (unsigned short)(((gb_ext_ch3_buffer >> gb_ext_ch3_shift) << 5) & 0x01FF); // max of 0x01FF for each channel
 		}
 
 		// length
@@ -7158,6 +7293,8 @@ void gb_audio()
 			if (gb_ext_ch3_length >= 32768) // 256 << 7
 			{
 				gb_aud_nr52 = (unsigned char)(gb_aud_nr52 & 0xFB); // disable channel 3
+
+				gb_ext_ch3_buffer = 0x00;
 			}
 		}
 	}
@@ -7210,7 +7347,7 @@ void gb_audio()
 
 				if ((gb_ext_ch4_lfsr & 0x01) == 0x01)
 				{
-					gb_ext_ch4_value = 0x01FF; // max of 0x01FF for each channel
+					gb_ext_ch4_value = (unsigned short)(0x01FF); // max of 0x01FF for each channel
 				}
 				else
 				{
@@ -7233,11 +7370,10 @@ void gb_audio()
 		// volume/envelope
 		if ((gb_aud_nr42 & 0x07) != 0x00)
 		{
-			gb_ext_ch4_envelope += 1;
-
-			if (gb_ext_ch4_envelope >= ((gb_aud_nr42 & 0x07) << 9))
+			gb_ext_ch4_envelope += gb_ext_ch4_increment;
+			if (gb_ext_ch4_envelope >= ((gb_aud_nr42 & 0x07) << 9)) // multiply by 512
 			{
-				gb_ext_ch4_envelope -= ((gb_aud_nr42 & 0x07) << 9);
+				gb_ext_ch4_envelope -= ((gb_aud_nr42 & 0x07) << 9); // multiply by 512
 
 				if ((gb_aud_nr42 & 0x08) == 0x08)
 				{
@@ -7245,6 +7381,7 @@ void gb_audio()
 					{
 						gb_ext_ch4_volume += 1; // increase volume
 					}
+					else gb_ext_ch4_increment = 0;
 				}
 				else
 				{
@@ -7252,6 +7389,7 @@ void gb_audio()
 					{
 						gb_ext_ch4_volume -= 1; // decrease volume
 					}
+					else gb_ext_ch4_increment = 0;
 				}
 			}
 		}
@@ -7261,16 +7399,20 @@ void gb_audio()
 		gb_ext_ch4_value = 0x0000;
 	}
 
+	unsigned short audio_value = 0x0000;
+
 	// mixer/panning
-	gb_game_audio_buffer[gb_game_audio_write+gb_game_audio_section] = 0x0000; // unsigned
-	gb_game_audio_buffer[gb_game_audio_write+gb_game_audio_section] += (unsigned short)(gb_ext_ch1_value * gb_ext_ch1_volume * (((gb_aud_nr51 & 0x10) >> 4) + ((gb_aud_nr51 & 0x01))));
-	gb_game_audio_buffer[gb_game_audio_write+gb_game_audio_section] += (unsigned short)(gb_ext_ch2_value * gb_ext_ch2_volume * (((gb_aud_nr51 & 0x20) >> 5) + ((gb_aud_nr51 & 0x02) >> 1)));
-	gb_game_audio_buffer[gb_game_audio_write+gb_game_audio_section] += (unsigned short)(gb_ext_ch3_value * gb_ext_ch3_volume * (((gb_aud_nr51 & 0x40) >> 6) + ((gb_aud_nr51 & 0x04) >> 2)));
-	gb_game_audio_buffer[gb_game_audio_write+gb_game_audio_section] += (unsigned short)(gb_ext_ch4_value * gb_ext_ch4_volume * (((gb_aud_nr51 & 0x80) >> 7) + ((gb_aud_nr51 & 0x08) >> 3)));
+	audio_value = 0x0000; // unsigned
+	audio_value += (unsigned short)((gb_ext_ch1_value * gb_ext_ch1_volume * (((gb_aud_nr51 & 0x10) >> 4) | ((gb_aud_nr51 & 0x01) >> 0))));
+	audio_value += (unsigned short)((gb_ext_ch2_value * gb_ext_ch2_volume * (((gb_aud_nr51 & 0x20) >> 5) | ((gb_aud_nr51 & 0x02) >> 1))));
+	audio_value += (unsigned short)((gb_ext_ch3_value * 0x0F * (((gb_aud_nr51 & 0x40) >> 6) | ((gb_aud_nr51 & 0x04) >> 2))));
+	audio_value += (unsigned short)((gb_ext_ch4_value * gb_ext_ch4_volume * (((gb_aud_nr51 & 0x80) >> 7) | ((gb_aud_nr51 & 0x08) >> 3))));
 
 	// master volume
-	gb_game_audio_buffer[gb_game_audio_write+gb_game_audio_section] = gb_game_audio_buffer[gb_game_audio_write+gb_game_audio_section] / (16 - (((gb_aud_nr50 & 0x70) >> 4) + (gb_aud_nr50 & 0x07)));
+	audio_value = audio_value / (16 - (((gb_aud_nr50 & 0x70) >> 4) | (gb_aud_nr50 & 0x07)));
 	
+	gb_game_audio_buffer[gb_game_audio_write] = audio_value;
+
 	gb_game_audio_write += 1;
 
 	if (gb_game_audio_write >= AUDIO_LEN)
@@ -7279,7 +7421,6 @@ void gb_audio()
 	}
 }
 
-unsigned long gb_ext_stat_reason = 0x00;
 
 // checks for things according to cycles taken
 void gb_updates()
