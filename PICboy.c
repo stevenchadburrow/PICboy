@@ -7385,7 +7385,7 @@ void gb_updates()
 			gb_io_if |= 0x02;
 		}
 
-		if ((gb_io_stat & 0x40) == 0x40 && (gb_ext_stat_previous & 0x40) != 0x40 && (gb_io_stat & 0x04) == 0x04) // LY=LYC interrupt
+		if ((gb_io_stat & 0x40) == 0x40 && (gb_io_stat & 0x04) == 0x04) // LY=LYC interrupt
 		{
 			gb_io_if |= 0x02;
 		}
