@@ -149,7 +149,7 @@ unsigned char gb_mem_eram[32768]; // 32KB max size
 unsigned char gb_mem_wram[32768];
 unsigned char gb_mem_oam[160];
 unsigned char gb_mem_wave[16];
-unsigned char gb_mem_hram[127];
+unsigned char gb_mem_hram[128];
 
 // gbc memory arrays
 unsigned char gb_mem_cram[128];
@@ -7423,7 +7423,6 @@ void gb_audio()
 	}
 }
 
-
 // checks for things according to cycles taken
 void gb_updates()
 {
@@ -7443,9 +7442,7 @@ void gb_updates()
 	}
 
 
-	// lcd/stat cycles
-	gb_ext_stat_previous = gb_io_stat;
-	
+	// lcd/stat cycles	
 	gb_ext_lx += (gb_cpu_cycles >> gb_ext_speed_shift); // everything else can be twice as fast
 
 	if (gb_ext_lx >= 456) // horizontal max
@@ -7509,21 +7506,24 @@ void gb_updates()
 	}
 
 	// lcd/stat interrupts
-	gb_io_if &= 0xFD;
+	//gb_io_if &= 0xFD;
 
-	if ((gb_io_lcdc & 0x80) == 0x80)
+	if ((gb_io_lcdc & 0x80) == 0x80) 
 	{
-		if ((gb_io_stat & 0x08) == 0x08 && (gb_ext_stat_previous & 0x08) != 0x08 && (gb_io_stat & 0x03) == 0x00) // mode 0 interrupt
+		if ((gb_io_stat & 0x08) == 0x08 && ((gb_ext_stat_previous & 0x08) != 0x08) ||
+			((gb_io_stat & 0x03) == 0x00 && (gb_ext_stat_previous & 0x03) != 0x00)) // mode 0 interrupt
+		{
+			gb_io_if |= 0x02;
+		}  
+
+		if ((gb_io_stat & 0x10) == 0x10 && ((gb_ext_stat_previous & 0x10) != 0x10) ||
+			((gb_io_stat & 0x03) == 0x01 && (gb_ext_stat_previous & 0x03) != 0x01)) // mode 1 interrupt
 		{
 			gb_io_if |= 0x02;
 		}
 
-		if ((gb_io_stat & 0x10) == 0x10 && (gb_ext_stat_previous & 0x10) != 0x10 && (gb_io_stat & 0x03) == 0x01) // mode 1 interrupt
-		{
-			gb_io_if |= 0x02;
-		}
-
-		if ((gb_io_stat & 0x20) == 0x20 && (gb_ext_stat_previous & 0x20) != 0x20 && (gb_io_stat & 0x03) == 0x02) // mode 2 interrupt
+		if ((gb_io_stat & 0x20) == 0x20 && ((gb_ext_stat_previous & 0x20) != 0x20) ||
+			((gb_io_stat & 0x03) == 0x02 && (gb_ext_stat_previous & 0x03) != 0x02)) // mode 2 interrupt
 		{
 			gb_io_if |= 0x02;
 		}
@@ -7533,6 +7533,8 @@ void gb_updates()
 			gb_io_if |= 0x02;
 		}
 	}
+
+	gb_ext_stat_previous = gb_io_stat;
 
 	// timer cycles
 	gb_ext_div_cycles += gb_cpu_cycles;
@@ -8233,8 +8235,6 @@ int main(const int argc, const char **argv)
 			{
 				gb_buttons("SaveFile.bin"); // default name
 			}
-
-			//printf("%02X\n", gb_mem_wram[0x0634]);
 		}
 	}
 
