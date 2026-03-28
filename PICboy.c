@@ -356,6 +356,7 @@ unsigned long gb_ext_hdma_destination = 0;
 unsigned long gb_ext_hdma_length = 0;
 unsigned long gb_ext_hdma_position = 0;
 unsigned long gb_ext_hdma_hblank = 0;
+unsigned long gb_ext_hdma_active = 0x80; // inactive
 
 // waiting for proper timing
 void gb_wait()
@@ -1370,7 +1371,7 @@ unsigned char gb_read(unsigned short addr)
 			}
 			case 0xFF55: // HDMA5
 			{
-				return (unsigned char)(gb_io_hdma5 | 0x80);  // always inactive
+				return (unsigned char)((gb_io_hdma5 & 0x7F) | gb_ext_hdma_active);
 				break;
 			}
 			case 0xFF56: // RP
@@ -2275,7 +2276,7 @@ void gb_write(unsigned short addr, unsigned char val)
 					gb_ext_hdma_length = (unsigned long)(((gb_io_hdma5 & 0x7F) + 1) << 4);
 					gb_ext_hdma_position = 0;
 
-					if ((gb_io_hdma5 & 0x80) == 0x00)
+					if ((gb_io_hdma5 & 0x80) == 0x00) // general
 					{
 						for (unsigned long i=0; i<gb_ext_hdma_length; i++)
 						{
@@ -2283,10 +2284,16 @@ void gb_write(unsigned short addr, unsigned char val)
 						}
 
 						gb_cpu_cycles += ((gb_ext_hdma_length >> 1) << gb_ext_speed_shift); // required?
+
+						gb_ext_hdma_active = 0x80; // inactive
+
+						gb_io_hdma5 = 0xFF; // inactive
 					}
-					else
+					else // h-blank
 					{
 						gb_cpu_cycles += (0x08 << gb_ext_speed_shift); // required?
+
+						gb_ext_hdma_active = 0x00; // active
 					}
 				}
 
@@ -2397,9 +2404,9 @@ void gb_run()
 	gb_def_read_8(gb_reg_pc.r16, gb_cpu_opcode);
 
 	// DEBUGGING
-	//printf("%02X:%04X-%02X A=%02X LCDC=%02X STAT=%02X\n", 
+	//printf("%02X:%04X-%02X A=%02X LCDC=%02X STAT=%02X HDMA5=%02X\n", 
 	//	(unsigned int)gb_cart_bank_rom, (unsigned int)gb_reg_pc.r16, (unsigned int)gb_cpu_opcode, 
-	//	(unsigned int)gb_reg_af.r8.a, (unsigned int)gb_io_lcdc, (unsigned int)gb_io_stat);
+	//	(unsigned int)gb_reg_af.r8.a, (unsigned int)gb_io_lcdc, (unsigned int)gb_io_stat, (unsigned int)gb_io_hdma5);
 
 	gb_def_step(gb_reg_pc.r16, 1);
 
@@ -7657,7 +7664,7 @@ void gb_updates()
 		{
 			gb_ext_hdma_hblank = 0;
 		
-			if ((gb_io_hdma5 & 0x80) == 0x80 && gb_io_hdma5 != 0xFF)
+			if ((gb_io_hdma5 & 0x80) == 0x80 && gb_io_hdma5 != 0xFF && gb_ext_hdma_position < gb_ext_hdma_length)
 			{
 				for (unsigned long i=gb_ext_hdma_position; i<gb_ext_hdma_position+0x10; i++)
 				{
@@ -7668,7 +7675,13 @@ void gb_updates()
 
 				gb_cpu_cycles += (0x08 << gb_ext_speed_shift); // required?
 
-				gb_io_hdma5 = (gb_io_hdma5 & 0x80) | ((gb_io_hdma5 & 0x7F) - 1);
+				gb_io_hdma5 = (((gb_io_hdma5 & 0x7F) - 1) | 0x80);
+			}
+			else
+			{
+				gb_ext_hdma_active = 0x80; // inactive
+
+				gb_io_hdma5 = 0xFF; // inactive
 			}
 		}
 	}		
