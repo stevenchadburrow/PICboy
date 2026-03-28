@@ -7506,7 +7506,7 @@ void gb_updates()
 	}
 
 	// lcd/stat interrupts
-	//gb_io_if &= 0xFD;
+	gb_io_if &= 0xFD;
 
 	if ((gb_io_lcdc & 0x80) == 0x80) 
 	{
