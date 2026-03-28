@@ -7510,25 +7510,26 @@ void gb_updates()
 
 	if ((gb_io_lcdc & 0x80) == 0x80) 
 	{
-		if ((gb_io_stat & 0x08) == 0x08 && ((gb_ext_stat_previous & 0x08) != 0x08) ||
+		if ((gb_io_stat & 0x08) == 0x08 &&
 			((gb_io_stat & 0x03) == 0x00 && (gb_ext_stat_previous & 0x03) != 0x00)) // mode 0 interrupt
 		{
 			gb_io_if |= 0x02;
 		}  
 
-		if ((gb_io_stat & 0x10) == 0x10 && ((gb_ext_stat_previous & 0x10) != 0x10) ||
+		if ((gb_io_stat & 0x10) == 0x10 &&
 			((gb_io_stat & 0x03) == 0x01 && (gb_ext_stat_previous & 0x03) != 0x01)) // mode 1 interrupt
 		{
 			gb_io_if |= 0x02;
 		}
 
-		if ((gb_io_stat & 0x20) == 0x20 && ((gb_ext_stat_previous & 0x20) != 0x20) ||
+		if ((gb_io_stat & 0x20) == 0x20 &&
 			((gb_io_stat & 0x03) == 0x02 && (gb_ext_stat_previous & 0x03) != 0x02)) // mode 2 interrupt
 		{
 			gb_io_if |= 0x02;
 		}
 
-		if ((gb_io_stat & 0x40) == 0x40 && (gb_io_stat & 0x04) == 0x04) // LY=LYC interrupt
+		if ((gb_io_stat & 0x40) == 0x40 &&
+			((gb_io_stat & 0x04) == 0x04 && (gb_ext_stat_previous & 0x04) != 0x04)) // LY=LYC interrupt
 		{
 			gb_io_if |= 0x02;
 		}
