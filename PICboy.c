@@ -55,8 +55,8 @@ int gb_game_audio_file = 0;
 unsigned int gb_game_audio_read = 0;
 unsigned int gb_game_audio_write = 0;
 unsigned char gb_game_audio_mute = 0;
-unsigned char gb_game_buttons_current = 0;
-unsigned char gb_game_buttons_previous = 0;
+unsigned char gb_game_buttons_current = 0xFF;
+unsigned char gb_game_buttons_previous = 0xFF;
 unsigned char gb_game_buttons_turbo_a = 0;
 unsigned char gb_game_buttons_turbo_b = 0;
 unsigned char gb_game_buttons_turbo_timer = 0;
@@ -7420,7 +7420,7 @@ void gb_audio()
 	// master volume
 	audio_value = audio_value / (16 - (((gb_aud_nr50 & 0x70) >> 4) | (gb_aud_nr50 & 0x07)));
 	
-	gb_game_audio_buffer[gb_game_audio_write] = audio_value;
+	gb_game_audio_buffer[gb_game_audio_write+gb_game_audio_section] = audio_value;
 
 	gb_game_audio_write += 1;
 
@@ -7931,7 +7931,7 @@ void openal_play()
 	alSourcePlay(openal_source);
 	
 	// double buffering
-	if (gb_game_audio_section > 0) gb_game_audio_section = AUDIO_LEN;
+	if (gb_game_audio_section == 0) gb_game_audio_section = AUDIO_LEN;
 	else gb_game_audio_section = 0;
 
 	for (int i=0; i<AUDIO_LEN; i++)
