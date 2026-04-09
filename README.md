@@ -7,7 +7,7 @@ The principle is to keep this emulator in a single C file and have it as portabl
 
 This is a full DMG/GBC emulator with audio included, for No-MBC, MBC1, MBC2, MBC3, and MBC5 carts.  Nearly all GBC additions are marked somehow.  Most GBC games work, some do not, specifically Shantae (which I'm ok with!)  The audio sounds great on microcontroller hardware, but this implementation using OpenAL makes it sound pretty bad.  Overall, it runs Crystal Clear just fine, so good enough!<br>
 
-DMG games run at 60 FPS on a PIC32MZ running at 260 MHz, as do some GBC/DX games.  Some GBC games need the framerate reduced to 20 FPS let them run at full speed.<br>
+DMG games run at 60 FPS on a PIC32MZ running at 260 MHz, as do some GBC/DX games.  Some GBC games need the framerate reduced to 20 FPS to let them run at full speed.<br>
 
 <b>Features:</b><br>
 - Cart RAM Save/Load<br>
