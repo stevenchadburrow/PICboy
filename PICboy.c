@@ -6068,7 +6068,7 @@ void gb_line()
 	if ((gb_io_lcdc & 0x80) == 0x00) return;
 
 	unsigned long loc, start, end, tile, left, right;
-	unsigned long shift, pos, pal, val, color, obj;
+	unsigned long shift, mod, pos, pal, val, color, obj;
 	signed int spr;
 	unsigned short pri_enable, pri_value;
 
@@ -6109,12 +6109,14 @@ void gb_line()
 					{
 						shift = (x*8+i) - (gb_io_scx); // gbc flipping
 						
-						if ((shift & 0x00FF) < 160)
+						mod = (shift & 0x00FF);
+
+						if (mod < 160)
 						{
 							pal = ((((left & 0x01)) | ((right & 0x02))) << 1);
 
 							// pre-palette
-							gb_game_line_buffer[shift] = ((pal) + ((attr & 0x07) << 3)) | (attr & 0x80); // gbc palettes
+							gb_game_line_buffer[mod] = ((pal) + ((attr & 0x07) << 3)) | (attr & 0x80); // gbc palettes
 						}
 
 						left = (left >> 1);
@@ -6134,12 +6136,14 @@ void gb_line()
 					{
 						shift = (x*8-i+7) - (gb_io_scx); // gbc flipping
 						
-						if ((shift & 0x00FF) < 160)
+						mod = (shift & 0x00FF);
+
+						if (mod < 160)
 						{
 							pal = ((((left & 0x01)) | ((right & 0x02))) << 1);
 
 							// pre-palette
-							gb_game_line_buffer[shift] = ((pal) + ((attr & 0x07) << 3)) | (attr & 0x80); // gbc palettes
+							gb_game_line_buffer[mod] = ((pal) + ((attr & 0x07) << 3)) | (attr & 0x80); // gbc palettes
 						}
 
 						left = (left >> 1);
@@ -6159,12 +6163,14 @@ void gb_line()
 					{
 						shift = (x*8+i) - (gb_io_scx); // gbc flipping
 						
-						if ((shift & 0x00FF) < 160)
+						mod = (shift & 0x00FF);
+
+						if (mod < 160)
 						{
 							pal = ((((left & 0x01)) | ((right & 0x02))) << 1);
 
 							// pre-palette
-							gb_game_line_buffer[shift] = ((pal) + ((attr & 0x07) << 3)) | (attr & 0x80); // gbc palettes
+							gb_game_line_buffer[mod] = ((pal) + ((attr & 0x07) << 3)) | (attr & 0x80); // gbc palettes
 						}
 
 						left = (left >> 1);
@@ -6184,12 +6190,14 @@ void gb_line()
 					{
 						shift = (x*8-i+7) - (gb_io_scx); // gbc flipping
 						
-						if ((shift & 0x00FF) < 160)
+						mod = (shift & 0x00FF);
+
+						if (mod < 160)
 						{
 							pal = ((((left & 0x01)) | ((right & 0x02))) << 1);
 
 							// pre-palette
-							gb_game_line_buffer[shift] = ((pal) + ((attr & 0x07) << 3)) | (attr & 0x80); // gbc palettes
+							gb_game_line_buffer[mod] = ((pal) + ((attr & 0x07) << 3)) | (attr & 0x80); // gbc palettes
 						}
 
 						left = (left >> 1);
@@ -6236,12 +6244,14 @@ void gb_line()
 							{
 								shift = (x*8+i) + (gb_io_wx-7); // gbc flips
 								
-								if ((shift & 0x00FF) < 160)
+								mod = (shift & 0x00FF);
+
+								if (mod < 160)
 								{
 									pal = ((((left & 0x01)) | ((right & 0x02))) << 1);
 									
 									// pre-palette
-									gb_game_line_buffer[shift] = ((pal) + ((attr & 0x07) << 3)) | (attr & 0x80); // gbc palettes
+									gb_game_line_buffer[mod] = ((pal) + ((attr & 0x07) << 3)) | (attr & 0x80); // gbc palettes
 								}
 
 								left = (left >> 1);
@@ -6261,12 +6271,14 @@ void gb_line()
 							{
 								shift = (x*8-i+7) + (gb_io_wx-7); // gbc flips
 								
-								if ((shift & 0x00FF) < 160)
+								mod = (shift & 0x00FF);
+
+								if (mod < 160)
 								{
 									pal = ((((left & 0x01)) | ((right & 0x02))) << 1);
 									
 									// pre-palette
-									gb_game_line_buffer[shift] = ((pal) + ((attr & 0x07) << 3)) | (attr & 0x80); // gbc palettes
+									gb_game_line_buffer[mod] = ((pal) + ((attr & 0x07) << 3)) | (attr & 0x80); // gbc palettes
 								}
 
 								left = (left >> 1);
@@ -6286,12 +6298,14 @@ void gb_line()
 							{
 								shift = (x*8+i) + (gb_io_wx-7); // gbc flips
 								
-								if ((shift & 0x00FF) < 160)
+								mod = (shift & 0x00FF);
+
+								if (mod < 160)
 								{
 									pal = ((((left & 0x01)) | ((right & 0x02))) << 1);
 									
 									// pre-palette
-									gb_game_line_buffer[shift] = ((pal) + ((attr & 0x07) << 3)) | (attr & 0x80); // gbc palettes
+									gb_game_line_buffer[mod] = ((pal) + ((attr & 0x07) << 3)) | (attr & 0x80); // gbc palettes
 								}
 
 								left = (left >> 1);
@@ -6311,12 +6325,14 @@ void gb_line()
 							{
 								shift = (x*8-i+7) + (gb_io_wx-7); // gbc flips
 								
-								if ((shift & 0x00FF) < 160)
+								mod = (shift & 0x00FF);
+
+								if (mod < 160)
 								{
 									pal = ((((left & 0x01)) | ((right & 0x02))) << 1);
 									
 									// pre-palette
-									gb_game_line_buffer[shift] = ((pal) + ((attr & 0x07) << 3)) | (attr & 0x80); // gbc palettes
+									gb_game_line_buffer[mod] = ((pal) + ((attr & 0x07) << 3)) | (attr & 0x80); // gbc palettes
 								}
 
 								left = (left >> 1);
@@ -6367,17 +6383,19 @@ void gb_line()
 								{
 									shift = gb_mem_oam[i+1] + j - 8;
 									
-									if ((shift & 0x00FF) < 160)
+									mod = (shift & 0x00FF);
+
+									if (mod < 160)
 									{
 										pal = ((((left & 0x01)) | ((right & 0x02))) << 1);
 
 										if (pal != 0x00)
 										{
-											if (pri_enable == 0 || (pri_enable == 1 && (gb_game_line_buffer[shift] & 0x80) == 0x00 && (gb_mem_oam[i+3] & 0x80) == 0x00) || 
-												(pri_enable == 1 && (gb_game_line_buffer[shift] & 0x06) == 0x00))
+											if (pri_enable == 0 || (pri_enable == 1 && (gb_game_line_buffer[mod] & 0x80) == 0x00 && (gb_mem_oam[i+3] & 0x80) == 0x00) || 
+												(pri_enable == 1 && (gb_game_line_buffer[mod] & 0x06) == 0x00))
 											{
 												// pre-palette
-												gb_game_line_buffer[shift] = ((gb_game_line_buffer[shift] & 0x80) | ((pal) + ((gb_mem_oam[i+3] & 0x07) << 3)) | 0x40); // gbc palettes
+												gb_game_line_buffer[mod] = ((gb_game_line_buffer[mod] & 0x80) | ((pal) + ((gb_mem_oam[i+3] & 0x07) << 3)) | 0x40); // gbc palettes
 											}
 										}
 									}
@@ -6399,17 +6417,19 @@ void gb_line()
 								{
 									shift = gb_mem_oam[i+1] - j - 1;
 								
-									if ((shift & 0x00FF) < 160)
+									mod = (shift & 0x00FF);
+
+									if (mod < 160)
 									{
 										pal = ((((left & 0x01)) | ((right & 0x02))) << 1);
 									
 										if (pal != 0x00)
 										{
-											if (pri_enable == 0 || (pri_enable == 1 && (gb_game_line_buffer[shift] & 0x80) == 0x00 && (gb_mem_oam[i+3] & 0x80) == 0x00) || 
-												(pri_enable == 1 && (gb_game_line_buffer[shift] & 0x06) == 0x00))
+											if (pri_enable == 0 || (pri_enable == 1 && (gb_game_line_buffer[mod] & 0x80) == 0x00 && (gb_mem_oam[i+3] & 0x80) == 0x00) || 
+												(pri_enable == 1 && (gb_game_line_buffer[mod] & 0x06) == 0x00))
 											{
 												// pre-palette
-												gb_game_line_buffer[shift] = ((gb_game_line_buffer[shift] & 0x80) | ((pal) + ((gb_mem_oam[i+3] & 0x07) << 3)) | 0x40); // gbc palettes
+												gb_game_line_buffer[mod] = ((gb_game_line_buffer[mod] & 0x80) | ((pal) + ((gb_mem_oam[i+3] & 0x07) << 3)) | 0x40); // gbc palettes
 											}
 										}
 									}
@@ -6431,17 +6451,19 @@ void gb_line()
 								{
 									shift = gb_mem_oam[i+1] + j - 8;
 									
-									if ((shift & 0x00FF) < 160)
+									mod = (shift & 0x00FF);
+
+									if (mod < 160)
 									{
 										pal = ((((left & 0x01)) | ((right & 0x02))) << 1);
 
 										if (pal != 0x00)
 										{
-											if (pri_enable == 0 || (pri_enable == 1 && (gb_game_line_buffer[shift] & 0x80) == 0x00 && (gb_mem_oam[i+3] & 0x80) == 0x00) || 
-												(pri_enable == 1 && (gb_game_line_buffer[shift] & 0x06) == 0x00))
+											if (pri_enable == 0 || (pri_enable == 1 && (gb_game_line_buffer[mod] & 0x80) == 0x00 && (gb_mem_oam[i+3] & 0x80) == 0x00) || 
+												(pri_enable == 1 && (gb_game_line_buffer[mod] & 0x06) == 0x00))
 											{
 												// pre-palette
-												gb_game_line_buffer[shift] = ((gb_game_line_buffer[shift] & 0x80) | ((pal) + ((gb_mem_oam[i+3] & 0x07) << 3)) | 0x40); // gbc palettes
+												gb_game_line_buffer[mod] = ((gb_game_line_buffer[mod] & 0x80) | ((pal) + ((gb_mem_oam[i+3] & 0x07) << 3)) | 0x40); // gbc palettes
 											}
 										}
 									}
@@ -6463,17 +6485,19 @@ void gb_line()
 								{
 									shift = gb_mem_oam[i+1] - j - 1;
 								
-									if ((shift & 0x00FF) < 160)
+									mod = (shift & 0x00FF);
+
+									if (mod < 160)
 									{
 										pal = ((((left & 0x01)) | ((right & 0x02))) << 1);
 
 										if (pal != 0x00)
 										{
-											if (pri_enable == 0 || (pri_enable == 1 && (gb_game_line_buffer[shift] & 0x80) == 0x00 && (gb_mem_oam[i+3] & 0x80) == 0x00) || 
-												(pri_enable == 1 && (gb_game_line_buffer[shift] & 0x06) == 0x00))
+											if (pri_enable == 0 || (pri_enable == 1 && (gb_game_line_buffer[mod] & 0x80) == 0x00 && (gb_mem_oam[i+3] & 0x80) == 0x00) || 
+												(pri_enable == 1 && (gb_game_line_buffer[mod] & 0x06) == 0x00))
 											{
 												// pre-palette
-												gb_game_line_buffer[shift] = ((gb_game_line_buffer[shift] & 0x80) | ((pal) + ((gb_mem_oam[i+3] & 0x07) << 3)) | 0x40); // gbc palettes
+												gb_game_line_buffer[mod] = ((gb_game_line_buffer[mod] & 0x80) | ((pal) + ((gb_mem_oam[i+3] & 0x07) << 3)) | 0x40); // gbc palettes
 											}
 										}
 									}
@@ -6522,17 +6546,19 @@ void gb_line()
 								{
 									shift = gb_mem_oam[i+1] + j - 8;
 									
-									if ((shift & 0x00FF) < 160)
+									mod = (shift & 0x00FF);
+
+									if (mod < 160)
 									{
 										pal = ((((left & 0x01)) | ((right & 0x02))) << 1);
 
 										if (pal != 0x00)
 										{
-											if (pri_enable == 0 || (pri_enable == 1 && (gb_game_line_buffer[shift] & 0x80) == 0x00 && (gb_mem_oam[i+3] & 0x80) == 0x00) || 
-												(pri_enable == 1 && (gb_game_line_buffer[shift] & 0x06) == 0x00))
+											if (pri_enable == 0 || (pri_enable == 1 && (gb_game_line_buffer[mod] & 0x80) == 0x00 && (gb_mem_oam[i+3] & 0x80) == 0x00) || 
+												(pri_enable == 1 && (gb_game_line_buffer[mod] & 0x06) == 0x00))
 											{
 												// pre-palette
-												gb_game_line_buffer[shift] = ((gb_game_line_buffer[shift] & 0x80) | ((pal) + ((gb_mem_oam[i+3] & 0x07) << 3)) | 0x40); // gbc palettes
+												gb_game_line_buffer[mod] = ((gb_game_line_buffer[mod] & 0x80) | ((pal) + ((gb_mem_oam[i+3] & 0x07) << 3)) | 0x40); // gbc palettes
 											}
 										}
 									}
@@ -6554,17 +6580,19 @@ void gb_line()
 								{
 									shift = gb_mem_oam[i+1] - j - 1;
 								
-									if ((shift & 0x00FF) < 160)
+									mod = (shift & 0x00FF);
+
+									if (mod < 160)
 									{
 										pal = ((((left & 0x01)) | ((right & 0x02))) << 1);
 									
 										if (pal != 0x00)
 										{
-											if (pri_enable == 0 || (pri_enable == 1 && (gb_game_line_buffer[shift] & 0x80) == 0x00 && (gb_mem_oam[i+3] & 0x80) == 0x00) || 
-												(pri_enable == 1 && (gb_game_line_buffer[shift] & 0x06) == 0x00))
+											if (pri_enable == 0 || (pri_enable == 1 && (gb_game_line_buffer[mod] & 0x80) == 0x00 && (gb_mem_oam[i+3] & 0x80) == 0x00) || 
+												(pri_enable == 1 && (gb_game_line_buffer[mod] & 0x06) == 0x00))
 											{
 												// pre-palette
-												gb_game_line_buffer[shift] = ((gb_game_line_buffer[shift] & 0x80) | ((pal) + ((gb_mem_oam[i+3] & 0x07) << 3)) | 0x40); // gbc palettes
+												gb_game_line_buffer[mod] = ((gb_game_line_buffer[mod] & 0x80) | ((pal) + ((gb_mem_oam[i+3] & 0x07) << 3)) | 0x40); // gbc palettes
 											}
 										}
 									}
@@ -6586,17 +6614,19 @@ void gb_line()
 								{
 									shift = gb_mem_oam[i+1] + j - 8;
 									
-									if ((shift & 0x00FF) < 160)
+									mod = (shift & 0x00FF);
+
+									if (mod < 160)
 									{
 										pal = ((((left & 0x01)) | ((right & 0x02))) << 1);
 
 										if (pal != 0x00)
 										{
-											if (pri_enable == 0 || (pri_enable == 1 && (gb_game_line_buffer[shift] & 0x80) == 0x00 && (gb_mem_oam[i+3] & 0x80) == 0x00) || 
-												(pri_enable == 1 && (gb_game_line_buffer[shift] & 0x06) == 0x00))
+											if (pri_enable == 0 || (pri_enable == 1 && (gb_game_line_buffer[mod] & 0x80) == 0x00 && (gb_mem_oam[i+3] & 0x80) == 0x00) || 
+												(pri_enable == 1 && (gb_game_line_buffer[mod] & 0x06) == 0x00))
 											{
 												// pre-palette
-												gb_game_line_buffer[shift] = ((gb_game_line_buffer[shift] & 0x80) | ((pal) + ((gb_mem_oam[i+3] & 0x07) << 3)) | 0x40); // gbc palettes
+												gb_game_line_buffer[mod] = ((gb_game_line_buffer[mod] & 0x80) | ((pal) + ((gb_mem_oam[i+3] & 0x07) << 3)) | 0x40); // gbc palettes
 											}
 										}
 									}
@@ -6618,17 +6648,19 @@ void gb_line()
 								{
 									shift = gb_mem_oam[i+1] - j - 1;
 								
-									if ((shift & 0x00FF) < 160)
+									mod = (shift & 0x00FF);
+
+									if (mod < 160)
 									{
 										pal = ((((left & 0x01)) | ((right & 0x02))) << 1);
 
 										if (pal != 0x00)
 										{
-											if (pri_enable == 0 || (pri_enable == 1 && (gb_game_line_buffer[shift] & 0x80) == 0x00 && (gb_mem_oam[i+3] & 0x80) == 0x00) || 
-												(pri_enable == 1 && (gb_game_line_buffer[shift] & 0x06) == 0x00))
+											if (pri_enable == 0 || (pri_enable == 1 && (gb_game_line_buffer[mod] & 0x80) == 0x00 && (gb_mem_oam[i+3] & 0x80) == 0x00) || 
+												(pri_enable == 1 && (gb_game_line_buffer[mod] & 0x06) == 0x00))
 											{
 												// pre-palette
-												gb_game_line_buffer[shift] = ((gb_game_line_buffer[shift] & 0x80) | ((pal) + ((gb_mem_oam[i+3] & 0x07) << 3)) | 0x40); // gbc palettes
+												gb_game_line_buffer[mod] = ((gb_game_line_buffer[mod] & 0x80) | ((pal) + ((gb_mem_oam[i+3] & 0x07) << 3)) | 0x40); // gbc palettes
 											}
 										}
 									}
@@ -6678,13 +6710,15 @@ void gb_line()
 			{
 				shift = (x*8+i) - (gb_io_scx);
 				
-				if ((shift & 0x00FF) < 160)
+				mod = (shift & 0x00FF);
+
+				if (mod < 160)
 				{
 					pal = ((((left & 0x01)) | ((right & 0x02))) << 1);
 					val = ((gb_io_bgp & (0x03 << pal)) >> pal);
 
 					// pre-palette
-					gb_game_line_buffer[shift] = val;
+					gb_game_line_buffer[mod] = val;
 				}
 
 				left = (left >> 1);
@@ -6719,13 +6753,15 @@ void gb_line()
 					{
 						shift = (x*8+i) + (gb_io_wx-7);
 						
-						if ((shift & 0x00FF) < 160)
+						mod = (shift & 0x00FF);
+
+						if (mod < 160)
 						{
 							pal = ((((left & 0x01)) | ((right & 0x02))) << 1);
 							val = ((gb_io_bgp & (0x03 << pal)) >> pal);
 							
 							// pre-palette
-							gb_game_line_buffer[shift] = val;
+							gb_game_line_buffer[mod] = val;
 						}
 
 						left = (left >> 1);
@@ -6782,7 +6818,9 @@ void gb_line()
 								{
 									shift = gb_mem_oam[i+1] + j - 8;
 									
-									if ((shift & 0x00FF) < 160)
+									mod = (shift & 0x00FF);
+
+									if (mod < 160)
 									{
 										pal = ((((left & 0x01)) | ((right & 0x02))) << 1);
 
@@ -6790,10 +6828,10 @@ void gb_line()
 										{
 											val = ((loc & (0x03 << pal)) >> pal);
 											
-											if (pri_enable == 0 || gb_game_line_buffer[shift] == pri_value)
+											if (pri_enable == 0 || gb_game_line_buffer[mod] == pri_value)
 											{
 												// pre-palette
-												gb_game_line_buffer[shift] = (val | obj);
+												gb_game_line_buffer[mod] = (val | obj);
 											}
 										}
 									}
@@ -6815,7 +6853,9 @@ void gb_line()
 								{
 									shift = gb_mem_oam[i+1] - j - 1;
 								
-									if ((shift & 0x00FF) < 160)
+									mod = (shift & 0x00FF);
+
+									if (mod < 160)
 									{
 										pal = ((((left & 0x01)) | ((right & 0x02))) << 1);
 									
@@ -6823,10 +6863,10 @@ void gb_line()
 										{
 											val = ((loc & (0x03 << pal)) >> pal);
 											
-											if (pri_enable == 0 || gb_game_line_buffer[shift] == pri_value)
+											if (pri_enable == 0 || gb_game_line_buffer[mod] == pri_value)
 											{
 												// pre-palette
-												gb_game_line_buffer[shift] = (val | obj);
+												gb_game_line_buffer[mod] = (val | obj);
 											}
 										}
 									}
@@ -6848,7 +6888,9 @@ void gb_line()
 								{
 									shift = gb_mem_oam[i+1] + j - 8;
 									
-									if ((shift & 0x00FF) < 160)
+									mod = (shift & 0x00FF);
+
+									if (mod < 160)
 									{
 										pal = ((((left & 0x01)) | ((right & 0x02))) << 1);
 
@@ -6856,10 +6898,10 @@ void gb_line()
 										{
 											val = ((loc & (0x03 << pal)) >> pal);
 										
-											if (pri_enable == 0 || gb_game_line_buffer[shift] == pri_value)
+											if (pri_enable == 0 || gb_game_line_buffer[mod] == pri_value)
 											{
 												// pre-palette
-												gb_game_line_buffer[shift] = (val | obj);
+												gb_game_line_buffer[mod] = (val | obj);
 											}
 										}
 									}
@@ -6881,7 +6923,9 @@ void gb_line()
 								{
 									shift = gb_mem_oam[i+1] - j - 1;
 								
-									if ((shift & 0x00FF) < 160)
+									mod = (shift & 0x00FF);
+
+									if (mod < 160)
 									{
 										pal = ((((left & 0x01)) | ((right & 0x02))) << 1);
 
@@ -6889,10 +6933,10 @@ void gb_line()
 										{
 											val = ((loc & (0x03 << pal)) >> pal);
 											
-											if (pri_enable == 0 || gb_game_line_buffer[shift] == pri_value)
+											if (pri_enable == 0 || gb_game_line_buffer[mod] == pri_value)
 											{
 												// pre-palette
-												gb_game_line_buffer[shift] = (val | obj);
+												gb_game_line_buffer[mod] = (val | obj);
 											}
 										}
 									}
@@ -6951,7 +6995,9 @@ void gb_line()
 								{
 									shift = gb_mem_oam[i+1] + j - 8;
 									
-									if ((shift & 0x00FF) < 160)
+									mod = (shift & 0x00FF);
+
+									if (mod < 160)
 									{
 										pal = ((((left & 0x01)) | ((right & 0x02))) << 1);
 
@@ -6959,10 +7005,10 @@ void gb_line()
 										{
 											val = ((loc & (0x03 << pal)) >> pal);
 											
-											if (pri_enable == 0 || gb_game_line_buffer[shift] == pri_value)
+											if (pri_enable == 0 || gb_game_line_buffer[mod] == pri_value)
 											{
 												// pre-palette
-												gb_game_line_buffer[shift] = (val | obj);
+												gb_game_line_buffer[mod] = (val | obj);
 											}
 										}
 									}
@@ -6984,7 +7030,9 @@ void gb_line()
 								{
 									shift = gb_mem_oam[i+1] - j - 1;
 								
-									if ((shift & 0x00FF) < 160)
+									mod = (shift & 0x00FF);
+
+									if (mod < 160)
 									{
 										pal = ((((left & 0x01)) | ((right & 0x02))) << 1);
 									
@@ -6992,10 +7040,10 @@ void gb_line()
 										{
 											val = ((loc & (0x03 << pal)) >> pal);
 											
-											if (pri_enable == 0 || gb_game_line_buffer[shift] == pri_value)
+											if (pri_enable == 0 || gb_game_line_buffer[mod] == pri_value)
 											{
 												// pre-palette
-												gb_game_line_buffer[shift] = (val | obj);
+												gb_game_line_buffer[mod] = (val | obj);
 											}
 										}
 									}
@@ -7017,7 +7065,9 @@ void gb_line()
 								{
 									shift = gb_mem_oam[i+1] + j - 8;
 									
-									if ((shift & 0x00FF) < 160)
+									mod = (shift & 0x00FF);
+
+									if (mod < 160)
 									{
 										pal = ((((left & 0x01)) | ((right & 0x02))) << 1);
 
@@ -7025,10 +7075,10 @@ void gb_line()
 										{
 											val = ((loc & (0x03 << pal)) >> pal);
 											
-											if (pri_enable == 0 || gb_game_line_buffer[shift] == pri_value)
+											if (pri_enable == 0 || gb_game_line_buffer[mod] == pri_value)
 											{
 												// pre-palette
-												gb_game_line_buffer[shift] = (val | obj);
+												gb_game_line_buffer[mod] = (val | obj);
 											}
 										}
 									}
@@ -7050,7 +7100,9 @@ void gb_line()
 								{
 									shift = gb_mem_oam[i+1] - j - 1;
 								
-									if ((shift & 0x00FF) < 160)
+									mod = (shift & 0x00FF);
+
+									if (mod < 160)
 									{
 										pal = ((((left & 0x01)) | ((right & 0x02))) << 1);
 
@@ -7058,10 +7110,10 @@ void gb_line()
 										{
 											val = ((loc & (0x03 << pal)) >> pal);
 											
-											if (pri_enable == 0 || gb_game_line_buffer[shift] == pri_value)
+											if (pri_enable == 0 || gb_game_line_buffer[mod] == pri_value)
 											{
 												// pre-palette
-												gb_game_line_buffer[shift] = (val | obj);
+												gb_game_line_buffer[mod] = (val | obj);
 											}
 										}
 									}
@@ -7077,6 +7129,7 @@ void gb_line()
 				}		
 			}
 		}
+
 
 		// replace with palette	
 		for (int i=0; i<160; i++)
