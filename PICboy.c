@@ -6246,7 +6246,7 @@ void gb_line()
 								
 								mod = (shift & 0x00FF);
 
-								if (mod < 160)
+								if (shift < 160) // check shift instead
 								{
 									pal = ((((left & 0x01)) | ((right & 0x02))) << 1);
 									
@@ -6273,7 +6273,7 @@ void gb_line()
 								
 								mod = (shift & 0x00FF);
 
-								if (mod < 160)
+								if (shift < 160) // check shift instead
 								{
 									pal = ((((left & 0x01)) | ((right & 0x02))) << 1);
 									
@@ -6300,7 +6300,7 @@ void gb_line()
 								
 								mod = (shift & 0x00FF);
 
-								if (mod < 160)
+								if (shift < 160) // check shift instead
 								{
 									pal = ((((left & 0x01)) | ((right & 0x02))) << 1);
 									
@@ -6327,7 +6327,7 @@ void gb_line()
 								
 								mod = (shift & 0x00FF);
 
-								if (mod < 160)
+								if (shift < 160) // check shift instead
 								{
 									pal = ((((left & 0x01)) | ((right & 0x02))) << 1);
 									
@@ -6755,7 +6755,7 @@ void gb_line()
 						
 						mod = (shift & 0x00FF);
 
-						if (mod < 160)
+						if (shift < 160) // check shift instead
 						{
 							pal = ((((left & 0x01)) | ((right & 0x02))) << 1);
 							val = ((gb_io_bgp & (0x03 << pal)) >> pal);
