@@ -2089,6 +2089,8 @@ void gb_write(unsigned short addr, unsigned char val)
 
 					gb_ext_ch4_increment = 1;
 
+					gb_ext_ch4_lfsr = 0xA5A5; // random value
+
 					//gb_ext_ch4_divider = (unsigned long)((gb_aud_nr43 & 0x07) << ((gb_aud_nr43 & 0xF0) >> 8));
 				}
 
