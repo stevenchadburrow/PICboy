@@ -1044,17 +1044,10 @@ unsigned char gb_read(unsigned short addr)
 			{
 				if (gb_cart_enable_ram > 0)
 				{
-					if (gb_cart_bank_mode == 0x00)
-					{
-						return gb_mem_eram[addr-0xA000];
-					}
-					else
-					{
-						gb_cart_bank_addr = (gb_cart_bank_ram << 13) | (addr & 0x1FFF);
-						gb_cart_bank_addr = (gb_cart_bank_addr & gb_cart_mask_ram);
+					gb_cart_bank_addr = (gb_cart_bank_ram << 13) | (addr & 0x1FFF);
+					gb_cart_bank_addr = (gb_cart_bank_addr & gb_cart_mask_ram);
 
-						return gb_mem_eram[gb_cart_bank_addr];
-					}
+					return gb_mem_eram[gb_cart_bank_addr];
 				}
 				else
 				{
@@ -1665,17 +1658,10 @@ void gb_write(unsigned short addr, unsigned char val)
 			{
 				if (gb_cart_enable_ram > 0)
 				{
-					if (gb_cart_bank_mode == 0x00)
-					{
-						gb_mem_eram[addr-0xA000] = val;
-					}
-					else
-					{
-						gb_cart_bank_addr = (gb_cart_bank_ram << 13) | (addr & 0x1FFF);
-						gb_cart_bank_addr = (gb_cart_bank_addr & gb_cart_mask_ram);
+					gb_cart_bank_addr = (gb_cart_bank_ram << 13) | (addr & 0x1FFF);
+					gb_cart_bank_addr = (gb_cart_bank_addr & gb_cart_mask_ram);
 
-						gb_mem_eram[gb_cart_bank_addr] = val;
-					}
+					gb_mem_eram[gb_cart_bank_addr] = val;
 				}
 				else
 				{
