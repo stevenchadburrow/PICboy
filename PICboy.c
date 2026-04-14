@@ -304,6 +304,7 @@ unsigned long gb_cart_bank_rom = 1;
 unsigned long gb_cart_bank_ram = 0;
 unsigned long gb_cart_bank_mode = 0;
 unsigned long gb_cart_bank_addr = 0;
+unsigned char gb_cart_rtc[8] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 
 // extra registers
 unsigned long gb_ext_lx = 0;
@@ -1020,9 +1021,9 @@ unsigned char gb_read(unsigned short addr)
 			{
 				if (gb_cart_enable_ram > 0)
 				{
-					if (gb_cart_bank_mode == 0x00)
+					if (gb_cart_bank_ram >= 0x08)
 					{
-						return gb_mem_eram[addr-0xA000];
+						return gb_cart_rtc[gb_cart_bank_ram - 0x08]; // RTC
 					}
 					else
 					{
@@ -1567,11 +1568,11 @@ void gb_write(unsigned short addr, unsigned char val)
 			{
 				if (addr < 0x6000)
 				{
-					gb_cart_bank_ram = (unsigned char)(val & 0x07);
+					gb_cart_bank_ram = (unsigned char)(val & 0x0F);
 				}
 				else
 				{
-					// RTC operations
+					// RTC
 				}
 
 				break;
@@ -1642,9 +1643,9 @@ void gb_write(unsigned short addr, unsigned char val)
 			{
 				if (gb_cart_enable_ram > 0)
 				{
-					if (gb_cart_bank_mode == 0x00)
+					if (gb_cart_bank_ram >= 0x08)
 					{
-						gb_mem_eram[addr-0xA000] = val;
+						gb_cart_rtc[gb_cart_bank_ram - 0x08] = val; // RTC
 					}
 					else
 					{
@@ -2282,10 +2283,16 @@ void gb_write(unsigned short addr, unsigned char val)
 					{
 						for (unsigned long i=0; i<gb_ext_hdma_length; i++)
 						{
-							gb_write(((gb_ext_hdma_destination+i) & 0x9FFF), gb_read(gb_ext_hdma_source+i));
+							gb_write((((gb_ext_hdma_destination+i) & 0x1FFF) | 0x8000), gb_read(gb_ext_hdma_source+i));
 						}
 
-						gb_cpu_cycles += ((gb_ext_hdma_length >> 1) << gb_ext_speed_shift); // required?
+						// required?
+						gb_ext_hdma_source += gb_ext_hdma_length;
+						gb_ext_hdma_destination += gb_ext_hdma_length;
+						gb_ext_hdma_length = 0;
+
+						// required?
+						gb_cpu_cycles += ((gb_ext_hdma_length >> 1) << gb_ext_speed_shift);
 
 						gb_ext_hdma_active = 0x80; // inactive
 
@@ -7899,7 +7906,7 @@ void gb_buttons(const char *save_file)
 	else
 	{
 		gb_game_buttons_saving = 0;
-	}
+	}	
 
 	if (gb_game_buttons_saving > 0)
 	{
@@ -8204,7 +8211,7 @@ int main(const int argc, const char **argv)
 		{
 			printf("Loaded Cart RAM from: %s\n", argv[3]);
 		}
-	}		
+	}
 
 	if (gb_initialize() == 0)
 	{
