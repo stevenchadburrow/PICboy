@@ -1024,7 +1024,7 @@ unsigned char gb_read(unsigned short addr)
 				{
 					if (gb_cart_bank_ram >= 0x08)
 					{
-						return gb_cart_rtc[gb_cart_bank_ram - 0x08]; // RTC
+						return gb_cart_rtc[(gb_cart_bank_ram & 0x0F) - 0x08]; // RTC
 					}
 					else
 					{
@@ -1639,7 +1639,7 @@ void gb_write(unsigned short addr, unsigned char val)
 				{
 					if (gb_cart_bank_ram >= 0x08)
 					{
-						gb_cart_rtc[gb_cart_bank_ram - 0x08] = val; // RTC
+						gb_cart_rtc[(gb_cart_bank_ram & 0x0F) - 0x08] = val; // RTC
 					}
 					else
 					{
