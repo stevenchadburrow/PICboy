@@ -349,6 +349,7 @@ unsigned long gb_ext_ch4_increment = 0;
 unsigned long gb_ext_ch4_value = 0;
 unsigned long gb_ext_ch4_lfsr = 0xA5A5; // random value
 unsigned long gb_ext_ch4_bit = 0;
+unsigned long gb_ext_rtc_counter = 0;
 
 // gbc extra registers
 unsigned long gb_ext_speed_shift = 0;
@@ -7924,6 +7925,47 @@ void gb_buttons(const char *save_file)
 	}
 }
 
+// RTC, run once per second
+void gb_clock()
+{
+	gb_cart_rtc[0] += 1;
+
+	if (gb_cart_rtc[0] >= 60)
+	{
+		gb_cart_rtc[0] = 0;
+	
+		gb_cart_rtc[1] += 1;
+
+		if (gb_cart_rtc[1] >= 60)
+		{
+			gb_cart_rtc[1] = 0;
+
+			gb_cart_rtc[2] += 1;
+
+			if (gb_cart_rtc[2] >= 24)
+			{
+				gb_cart_rtc[2] = 0;
+
+				gb_cart_rtc[3] += 1;
+
+				if (gb_cart_rtc[3] >= 256)
+				{
+					gb_cart_rtc[3] = 0;
+
+					if ((gb_cart_rtc[4] & 0x01) == 0x01)
+					{
+						gb_cart_rtc[4] = 0x80; // overflow
+					}
+					else
+					{
+						gb_cart_rtc[4] |= 0x01;
+					}
+				}
+			}
+		}
+	}
+}
+
 
 // using OpenAL
 unsigned char openal_open()
@@ -8090,7 +8132,7 @@ int main(const int argc, const char **argv)
 	printf("\tO = Freeze\n");
 	printf("\tB = Save RAM file\n");
 	printf("\tV = Mute Audio\n");
-	printf("Arguments: <ROM file> [GBC|DMG|000|123|...] [RAM file]\n");
+	printf("Arguments: <ROM file> [GBC|DMG|000|123|...] [RAM file] [DDD:HH:MM:SS]\n");
 
 	if (argc < 2)
 	{
@@ -8199,6 +8241,29 @@ int main(const int argc, const char **argv)
 		}
 	}
 
+	// RTC
+	if (argc >= 5) 
+	{
+		unsigned long d = (argv[4][0] - '0') * 100 + 
+			(argv[4][1] - '0') * 10 +
+			(argv[4][2] - '0') * 1;
+
+		unsigned long h = (argv[4][4] - '0') * 10 +
+			(argv[4][5] - '0') * 1;
+
+		unsigned long m = (argv[4][7] - '0') * 10 +
+			(argv[4][8] - '0') * 1;
+
+		unsigned long s = (argv[4][9] - '0') * 10 +
+			(argv[4][10] - '0') * 1;
+		
+		gb_cart_rtc[0] = (unsigned char)s;
+		gb_cart_rtc[1] = (unsigned char)m;
+		gb_cart_rtc[2] = (unsigned char)h;
+		gb_cart_rtc[3] = (unsigned char)(d & 0xFF);
+		if (d >= 256) gb_cart_rtc[4] = 0x01;
+	}
+
 	if (gb_initialize() == 0)
 	{
 		printf("Unsupported settings detected!\n");
@@ -8296,6 +8361,15 @@ int main(const int argc, const char **argv)
 			else
 			{
 				gb_buttons("SaveFile.bin"); // default name
+			}
+
+			gb_ext_rtc_counter += 1;
+
+			if (gb_ext_rtc_counter >= 60)
+			{
+				gb_ext_rtc_counter = 0;
+
+				gb_clock(); // once per second
 			}
 		}
 	}
