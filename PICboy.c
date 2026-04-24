@@ -1072,9 +1072,13 @@ unsigned char gb_read(unsigned short addr)
 	{
 		return gb_mem_wram[(addr-0xD000)+0x1000*gb_bank_wram];
 	}
+	else if (addr < 0xF000) // echo ram
+	{
+		return gb_mem_wram[(addr-0xE000)];
+	}
 	else if (addr < 0xFE00) // echo ram
 	{
-		return gb_mem_wram[(addr-0xE000)+0x1000*gb_bank_wram];
+		return gb_mem_wram[(addr-0xF000)+0x1000*gb_bank_wram];
 	}
 	else if (addr < 0xFEA0) // oam ram
 	{
@@ -1685,9 +1689,13 @@ void gb_write(unsigned short addr, unsigned char val)
 	{
 		gb_mem_wram[(addr-0xD000)+0x1000*gb_bank_wram] = val;
 	}
-	else if (addr < 0xFE00) // echo ram, do nothing
+	else if (addr < 0xF000) // echo ram
 	{
-		gb_mem_wram[(addr-0xE000)+0x1000*gb_bank_wram] = val;
+		gb_mem_wram[(addr-0xE000)] = val;		
+	}
+	else if (addr < 0xFE00) // echo ram
+	{
+		gb_mem_wram[(addr-0xF000)+0x1000*gb_bank_wram] = val;
 	}
 	else if (addr < 0xFEA0) // oam ram
 	{
