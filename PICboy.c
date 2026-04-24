@@ -2234,7 +2234,11 @@ void gb_write(unsigned short addr, unsigned char val)
 				if (gb_mode == GBC)
 				{
 					gb_bank_vram = (unsigned long)(val & 0x01);
-				}	
+				}
+				else
+				{
+					gb_bank_vram = 0x00;
+				}
 
 				break;
 			}			
@@ -2281,10 +2285,14 @@ void gb_write(unsigned short addr, unsigned char val)
 							gb_write((((gb_ext_hdma_destination+i) & 0x1FFF) | 0x8000), gb_read(gb_ext_hdma_source+i));
 						}
 
-						// required?
 						gb_ext_hdma_source += gb_ext_hdma_length;
 						gb_ext_hdma_destination += gb_ext_hdma_length;
 						gb_ext_hdma_length = 0;
+
+						gb_io_hdma1 = (unsigned char)((gb_ext_hdma_source & 0xFF00) >> 8);
+						gb_io_hdma2 = (unsigned char)((gb_ext_hdma_source & 0x00FF));
+						gb_io_hdma3 = (unsigned char)((gb_ext_hdma_destination & 0xFF00) >> 8);
+						gb_io_hdma4 = (unsigned char)((gb_ext_hdma_destination & 0x00FF));
 
 						// required?
 						gb_cpu_cycles += ((gb_ext_hdma_length >> 1) << gb_ext_speed_shift);
@@ -2376,6 +2384,10 @@ void gb_write(unsigned short addr, unsigned char val)
 					{
 						gb_bank_wram = 0x01;
 					}
+				}
+				else
+				{
+					gb_bank_wram = 0x01;
 				}
 
 				break;
@@ -6092,7 +6104,7 @@ void gb_line()
 
 		for (unsigned long x=start; x<end; x++)
 		{
-			attr = gb_mem_vram[loc + (x & 0x1F) + 0x2000]; // gbc attributes
+			attr = (gb_mem_vram[loc + (x & 0x1F) + 0x2000]); // gbc attributes
 
 			tile = (gb_mem_vram[loc + (x & 0x1F)] << 4);
 
@@ -7725,7 +7737,7 @@ void gb_updates()
 			{
 				for (unsigned long i=gb_ext_hdma_position; i<gb_ext_hdma_position+0x10; i++)
 				{
-					gb_write(((gb_ext_hdma_destination+i) & 0x9FFF), gb_read(gb_ext_hdma_source+i));
+					gb_write((((gb_ext_hdma_destination+i) & 0x1FFF) | 0x8000), gb_read(gb_ext_hdma_source+i));
 				}
 
 				gb_ext_hdma_position += 0x10;
@@ -7736,6 +7748,15 @@ void gb_updates()
 			}
 			else
 			{
+				//gb_ext_hdma_source += gb_ext_hdma_length;
+				//gb_ext_hdma_destination += gb_ext_hdma_length;
+				//gb_ext_hdma_length = 0;
+
+				//gb_io_hdma1 = (unsigned char)((gb_ext_hdma_source & 0xFF00) >> 8);
+				//gb_io_hdma2 = (unsigned char)((gb_ext_hdma_source & 0x00FF));
+				//gb_io_hdma3 = (unsigned char)((gb_ext_hdma_destination & 0xFF00) >> 8);
+				//gb_io_hdma4 = (unsigned char)((gb_ext_hdma_destination & 0x00FF));
+
 				gb_ext_hdma_active = 0x80; // inactive
 
 				gb_io_hdma5 = 0xFF; // inactive
